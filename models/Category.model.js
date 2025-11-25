@@ -9,8 +9,7 @@ const categorySchema = new mongoose.Schema({
   slug: {
     type: String,
     required: true,
-    unique: true,
-    lowercase: true
+    unique: true
   },
   section: {
     type: String,

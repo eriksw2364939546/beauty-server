@@ -1,27 +1,42 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-const userSchema = new mongoose.Schema({
-  email: {
+const masterSchema = new mongoose.Schema({
+  fullName: {
     type: String,
     required: true,
-    unique: true,
-    lowercase: true,
     trim: true
   },
-  password: {
+  slug: {
     type: String,
-    required: true
+    required: true,
+    unique: true
   },
-  role: {
+  speciality: {
     type: String,
-    enum: ['admin'],
-    default: 'admin'
+    required: true,
+    trim: true
+  },
+  image: {
+    large: {
+      type: String,
+      required: true
+    },
+    medium: {
+      type: String,
+      required: true
+    },
+    thumb: {
+      type: String,
+      required: true
+    }
   }
 }, {
   timestamps: true,
   versionKey: false
 });
 
-userSchema.index({ email: 1 }, { unique: true });
+// Индексы
+masterSchema.index({ slug: 1 }, { unique: true });
+masterSchema.index({ createdAt: -1 });
 
-module.exports = mongoose.model('User', userSchema);
+export default mongoose.model('Master', masterSchema);
