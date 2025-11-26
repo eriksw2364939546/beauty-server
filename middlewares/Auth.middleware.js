@@ -1,212 +1,137 @@
-import multer from 'multer';
-import sharp from 'sharp';
-import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
-import fs from 'fs';
+import jwt from 'jsonwebtoken';
+import User from '../models/User.model.js';
 
-class UploadPhotoMiddleware {
-  constructor() {
-    // Создаем папку uploads если не существует
-    this.uploadDir = path.join(process.cwd(), 'public/uploads');
-    if (!fs.existsSync(this.uploadDir)) {
-      fs.mkdirSync(this.uploadDir, { recursive: true });
-    }
-
-    // Настройка multer для хранения в памяти
-    this.storage = multer.memoryStorage();
-    
-    // Настройка фильтра файлов
-    this.fileFilter = (req, file, cb) => {
-      // Разрешенные MIME типы
-      const allowedMimeTypes = [
-        'image/jpeg',
-        'image/jpg', 
-        'image/png',
-        'image/webp',
-        'image/avif',
-        'image/heic'
-      ];
-
-      if (allowedMimeTypes.includes(file.mimetype)) {
-        cb(null, true);
-      } else {
-        cb(new Error('invalid_format'), false);
-      }
-    };
-
-    // Основная конфигурация multer
-    this.upload = multer({
-      storage: this.storage,
-      fileFilter: this.fileFilter,
-      limits: {
-        fileSize: 5 * 1024 * 1024, // 5 MB
-        files: 1 // Только один файл
-      }
-    });
-  }
-
-  // Middleware для одного изображения с обработкой
-  single(fieldName = 'image') {
-    return [
-      this.upload.single(fieldName),
-      this.processImage.bind(this)
-    ];
-  }
-
-  // Опциональная загрузка (не обязательная)
-  optional(fieldName = 'image') {
-    return [
-      (req, res, next) => {
-        const uploadSingle = this.upload.single(fieldName);
-        
-        uploadSingle(req, res, (error) => {
-          if (error && error.code !== 'LIMIT_UNEXPECTED_FILE') {
-            return this.handleUploadError(error, res);
-          }
-          next();
-        });
-      },
-      this.processOptionalImage.bind(this)
-    ];
-  }
-
-  // Обработка изображения с Sharp
-  async processImage(req, res, next) {
+class AuthMiddleware {
+  // Проверка JWT токена из httpOnly cookie
+  async verifyToken(req, res, next) {
     try {
-      if (!req.file) {
-        return res.status(400).json({
+      // Получаем токен из cookie
+      const token = req.cookies?.admin_token;
+
+      if (!token) {
+        return res.status(401).json({
           ok: false,
-          error: 'file_required',
-          message: 'Изображение обязательно'
+          error: 'unauthorized',
+          message: 'Требуется авторизация'
         });
       }
 
-      const processedImages = await this.createImageSizes(req.file.buffer);
-      req.processedImages = processedImages;
-      
+      // Проверяем токен
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // Находим пользователя
+      const user = await User.findById(decoded.userId);
+
+      if (!user) {
+        return res.status(401).json({
+          ok: false,
+          error: 'unauthorized',
+          message: 'Пользователь не найден'
+        });
+      }
+
+      // Проверяем роль
+      if (user.role !== 'admin') {
+        return res.status(403).json({
+          ok: false,
+          error: 'forbidden',
+          message: 'Недостаточно прав'
+        });
+      }
+
+      // Добавляем пользователя в req для использования в контроллерах
+      req.user = user;
       next();
+
     } catch (error) {
-      console.error('Image processing error:', error);
+      if (error.name === 'JsonWebTokenError') {
+        return res.status(401).json({
+          ok: false,
+          error: 'unauthorized',
+          message: 'Неверный токен'
+        });
+      }
+
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          ok: false,
+          error: 'token_expired',
+          message: 'Токен истек'
+        });
+      }
+
       return res.status(500).json({
         ok: false,
-        error: 'image_processing_error',
-        message: 'Ошибка обработки изображения'
+        error: 'server_error',
+        message: 'Ошибка сервера'
       });
     }
   }
 
-  // Обработка опционального изображения
-  async processOptionalImage(req, res, next) {
+  // Опциональная проверка токена (не блокирует доступ)
+  async optionalAuth(req, res, next) {
     try {
-      if (req.file) {
-        const processedImages = await this.createImageSizes(req.file.buffer);
-        req.processedImages = processedImages;
+      const token = req.cookies?.admin_token;
+
+      if (token) {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decoded.userId);
+        
+        if (user && user.role === 'admin') {
+          req.user = user;
+        }
       }
-      
+
       next();
     } catch (error) {
-      console.error('Image processing error:', error);
-      return res.status(500).json({
+      // Игнорируем ошибки для опциональной авторизации
+      next();
+    }
+  }
+
+  // Middleware для проверки роли администратора
+  requireAdmin(req, res, next) {
+    if (!req.user) {
+      return res.status(401).json({
         ok: false,
-        error: 'image_processing_error',
-        message: 'Ошибка обработки изображения'
+        error: 'unauthorized',
+        message: 'Требуется авторизация'
       });
     }
-  }
 
-  // Создание трех размеров изображения
-  async createImageSizes(buffer) {
-    const uuid = uuidv4();
-    
-    // Размеры изображений
-    const sizes = {
-      large: { width: 1200, height: 900, quality: 80, maxSize: 80 * 1024 },
-      medium: { width: 800, height: 600, quality: 80, maxSize: 80 * 1024 },
-      thumb: { width: 400, height: 300, quality: 75, maxSize: 40 * 1024 }
-    };
-
-    const processedImages = {};
-
-    for (const [sizeName, config] of Object.entries(sizes)) {
-      const filename = `${config.width}-${uuid}.webp`;
-      const outputPath = path.join(this.uploadDir, filename);
-
-      let quality = config.quality;
-      let imageBuffer;
-
-      // Обрабатываем изображение с начальным качеством
-      do {
-        imageBuffer = await sharp(buffer)
-          .resize(config.width, config.height, { 
-            fit: 'cover', 
-            withoutEnlargement: false 
-          })
-          .webp({ quality })
-          .toBuffer();
-
-        // Если размер превышает лимит, снижаем качество
-        if (imageBuffer.length > config.maxSize) {
-          quality -= 5;
-        }
-      } while (imageBuffer.length > config.maxSize && quality > 20);
-
-      // Сохраняем файл
-      await fs.promises.writeFile(outputPath, imageBuffer);
-
-      processedImages[sizeName] = `/uploads/${filename}`;
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        ok: false,
+        error: 'forbidden',
+        message: 'Требуются права администратора'
+      });
     }
 
-    return processedImages;
+    next();
   }
 
-  // Удаление файлов изображения
-  async deleteImageFiles(imageObject) {
-    if (!imageObject) return;
+  // Проверка валидности токена без проверки пользователя (быстрая проверка)
+  async quickTokenCheck(req, res, next) {
+    try {
+      const token = req.cookies?.admin_token;
 
-    const sizes = ['large', 'medium', 'thumb'];
-    
-    for (const size of sizes) {
-      if (imageObject[size]) {
-        try {
-          const filename = path.basename(imageObject[size]);
-          const filePath = path.join(this.uploadDir, filename);
-          
-          if (fs.existsSync(filePath)) {
-            await fs.promises.unlink(filePath);
-          }
-        } catch (error) {
-          console.error(`Ошибка удаления файла ${size}:`, error);
-        }
+      if (!token) {
+        return res.status(401).json({
+          ok: false,
+          error: 'unauthorized'
+        });
       }
-    }
-  }
 
-  // Обработка ошибок загрузки
-  handleUploadError(error, res) {
-    console.error('Upload error:', error);
+      jwt.verify(token, process.env.JWT_SECRET);
+      next();
 
-    if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({
+    } catch (error) {
+      return res.status(401).json({
         ok: false,
-        error: 'file_too_large',
-        message: 'Файл слишком большой. Максимальный размер: 5 MB'
+        error: 'unauthorized'
       });
     }
-
-    if (error.message === 'invalid_format') {
-      return res.status(400).json({
-        ok: false,
-        error: 'invalid_format',
-        message: 'Неподдерживаемый формат файла. Разрешены: JPG, PNG, WebP, AVIF, HEIC'
-      });
-    }
-
-    return res.status(500).json({
-      ok: false,
-      error: 'upload_error',
-      message: 'Ошибка загрузки файла'
-    });
   }
 }
 
-export default new UploadPhotoMiddleware();
+export default new AuthMiddleware();
