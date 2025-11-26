@@ -214,22 +214,20 @@ const displayStartupInfo = (config, server) => {
     nodeVersion: process.version
   };
 
-  // Красивый вывод в консоль для development
-  if (isDevelopment()) {
-    console.log('\n🚀 Beauty Server запущен!');
-    console.log('═'.repeat(50));
-    console.log(`📱 Приложение: ${serverInfo.name} v${serverInfo.version}`);
-    console.log(`🌍 Окружение: ${serverInfo.environment}`);
-    console.log(`🔗 URL: http://${serverInfo.host}:${serverInfo.port}`);
-    console.log(`📊 Health Check: http://${serverInfo.host}:${serverInfo.port}/api/health`);
-    console.log(`📋 Info: http://${serverInfo.host}:${serverInfo.port}/api/info`);
-    console.log(`🆔 Process ID: ${serverInfo.processId}`);
-    console.log(`⚡ Node.js: ${serverInfo.nodeVersion}`);
-    console.log('═'.repeat(50));
-    console.log('📝 Логи: смотрите в консоли и папке logs/');
-    console.log('🛑 Остановка: Ctrl+C');
-    console.log('');
-  }
+  // Красивый вывод в консоль ВСЕГДА
+  console.log('\n🚀 Beauty Server запущен!');
+  console.log('═'.repeat(50));
+  console.log(`📱 Приложение: ${serverInfo.name} v${serverInfo.version}`);
+  console.log(`🌍 Окружение: ${serverInfo.environment}`);
+  console.log(`🔗 URL: http://${serverInfo.host}:${serverInfo.port}`);
+  console.log(`📊 Health Check: http://${serverInfo.host}:${serverInfo.port}/api/health`);
+  console.log(`📋 Info: http://${serverInfo.host}:${serverInfo.port}/api/info`);
+  console.log(`🆔 Process ID: ${serverInfo.processId}`);
+  console.log(`⚡ Node.js: ${serverInfo.nodeVersion}`);
+  console.log('═'.repeat(50));
+  console.log('📝 Логи: смотрите в консоли и папке logs/');
+  console.log('🛑 Остановка: Ctrl+C');
+  console.log('');
 
   logger.system('Server started successfully', serverInfo);
 };

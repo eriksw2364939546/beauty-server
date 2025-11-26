@@ -1,5 +1,5 @@
 import AuthService from '../services/AuthService.js';
-import { validateLogin, validateUpdateProfile } from '../validations/auth.validation.js';
+import { validateLogin, validateChangeEmail } from '../validations/auth.validation.js';
 
 class AuthController {
 
@@ -116,7 +116,7 @@ class AuthController {
   async updateProfile(req, res) {
     try {
       // Валидация входных данных
-      const { error, value } = validateUpdateProfile(req.body);
+      const { error, value } = validateChangeEmail(req.body);
       
       if (error) {
         return res.status(400).json({

@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const workSchema = new mongoose.Schema({
   image: {
@@ -28,4 +28,4 @@ const workSchema = new mongoose.Schema({
 workSchema.index({ categorySlug: 1 });
 workSchema.index({ createdAt: -1 });
 
-module.exports = mongoose.model('Work', workSchema);
+export default mongoose.model('Work', workSchema);

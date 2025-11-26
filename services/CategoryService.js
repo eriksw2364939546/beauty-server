@@ -1,4 +1,4 @@
-import Category from '../models/Category.model.js';
+import Category from '../models/Category.model.js'
 import { generateSlug } from '../utils/slug.js';
 
 class CategoryService {

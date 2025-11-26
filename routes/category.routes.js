@@ -1,7 +1,7 @@
 import express from 'express';
-import CategoryController from '../controllers/category.controller.js';
-import AuthMiddleware from '../middlewares/auth.middleware.js';
-import ValidationMiddleware from '../middlewares/validation.middleware.js';
+import CategoryController from '../controllers/CategoryController.js';
+import authMiddleware from '../middlewares/Auth.middleware.js';
+import validationMiddleware from '../middlewares/Validation.middleware.js';
 import { 
   validateCategory, 
   validateCategoryUpdate, 
@@ -15,13 +15,13 @@ const router = express.Router();
 
 // GET /api/categories - получить все категории
 router.get('/', 
-  ValidationMiddleware.validateQuery(validateCategoryQuery),
+  validationMiddleware(validateCategoryQuery),
   CategoryController.getAll
 );
 
 // GET /api/categories/:id - получить категорию по ID
 router.get('/:id', 
-  ValidationMiddleware.validateParams(validateCategoryParams),
+  validationMiddleware(validateCategoryParams),
   CategoryController.getById
 );
 
@@ -33,30 +33,30 @@ router.get('/slug/:slug',
 // АДМИНСКИЕ МАРШРУТЫ (требуют авторизации)
 
 // Middleware авторизации для всех админских маршрутов
-router.use(AuthMiddleware.verifyToken);
+router.use(authMiddleware);
 
 // POST /api/admin/categories - создать категорию
 router.post('/', 
-  ValidationMiddleware.validateBody(validateCategory),
+  validationMiddleware(validateCategory),
   CategoryController.create
 );
 
 // PATCH /api/admin/categories/:id - обновить категорию
 router.patch('/:id',
-  ValidationMiddleware.validateParams(validateCategoryParams),
-  ValidationMiddleware.validateBody(validateCategoryUpdate),
+  validationMiddleware(validateCategoryParams),
+  validationMiddleware(validateCategoryUpdate),
   CategoryController.update
 );
 
 // DELETE /api/admin/categories/:id - удалить категорию
 router.delete('/:id',
-  ValidationMiddleware.validateParams(validateCategoryParams),
+  validationMiddleware(validateCategoryParams),
   CategoryController.delete
 );
 
 // PATCH /api/admin/categories/:id/sort-order - изменить порядок сортировки
 router.patch('/:id/sort-order',
-  ValidationMiddleware.validateParams(validateCategoryParams),
+  validationMiddleware(validateCategoryParams),
   CategoryController.updateSortOrder
 );
 

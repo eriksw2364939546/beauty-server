@@ -1,6 +1,6 @@
 import User from '../models/User.model.js';
 import { hashPassword, comparePassword } from '../utils/hash.js';
-import { generateToken } from '../utils/jwt.js';
+import { createToken } from '../utils/jwt.js';
 
 class AuthService {
   
@@ -62,7 +62,7 @@ class AuthService {
       }
       
       // Генерация JWT токена
-      const token = generateToken({
+      const token = createToken({
         id: user._id,
         email: user.email,
         role: user.role

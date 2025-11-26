@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const serviceSchema = new mongoose.Schema({
   title: {
@@ -45,4 +45,4 @@ serviceSchema.index({ slug: 1 }, { unique: true });
 serviceSchema.index({ categorySlug: 1 });
 serviceSchema.index({ createdAt: -1 });
 
-module.exports = mongoose.model('Service', serviceSchema);
+export default mongoose.model('Service', serviceSchema);

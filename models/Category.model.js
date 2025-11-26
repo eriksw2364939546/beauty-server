@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const categorySchema = new mongoose.Schema({
   title: {
@@ -9,7 +9,8 @@ const categorySchema = new mongoose.Schema({
   slug: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    lowercase: true
   },
   section: {
     type: String,
@@ -29,4 +30,4 @@ const categorySchema = new mongoose.Schema({
 categorySchema.index({ slug: 1 }, { unique: true });
 categorySchema.index({ section: 1, sortOrder: 1 });
 
-module.exports = mongoose.model('Category', categorySchema);
+export default mongoose.model('Category', categorySchema);

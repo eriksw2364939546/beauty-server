@@ -1,8 +1,8 @@
 import express from 'express';
-import MasterController from '../controllers/master.controller.js';
-import AuthMiddleware from '../middlewares/auth.middleware.js';
-import ValidationMiddleware from '../middlewares/validation.middleware.js';
-import UploadPhotoMiddleware from '../middlewares/uploadPhoto.middleware.js';
+import MasterController from '../controllers/MasterController.js';
+import authMiddleware from '../middlewares/Auth.middleware.js';
+import validationMiddleware from '../middlewares/Validation.middleware.js';
+import uploadPhotoMiddleware from '../middlewares/UploadPhoto.middleware.js';
 import { 
   validateMaster, 
   validateMasterUpdate, 
@@ -16,51 +16,51 @@ const router = express.Router();
 
 // GET /api/masters - получить всех мастеров
 router.get('/', 
-  ValidationMiddleware.validateQuery(validateMasterQuery),
+  validationMiddleware(validateMasterQuery),
   MasterController.getAll
 );
 
 // GET /api/masters/:id - получить мастера по ID
 router.get('/:id', 
-  ValidationMiddleware.validateParams(validateMasterParams),
+  validationMiddleware(validateMasterParams),
   MasterController.getById
 );
 
 // GET /api/masters/by-speciality - мастера по специальности
 router.get('/by-speciality', 
-  ValidationMiddleware.validateQuery(validateMasterQuery),
+  validationMiddleware(validateMasterQuery),
   MasterController.getBySpeciality
 );
 
 // GET /api/masters/featured - избранные мастера (для главной страницы)
 router.get('/featured', 
-  ValidationMiddleware.validateQuery(validateMasterQuery),
+  validationMiddleware(validateMasterQuery),
   MasterController.getFeatured
 );
 
 // АДМИНСКИЕ МАРШРУТЫ (требуют авторизации)
 
 // Middleware авторизации для всех админских маршрутов
-router.use(AuthMiddleware.verifyToken);
+router.use(authMiddleware);
 
 // POST /api/admin/masters - создать мастера
 router.post('/', 
-  ...UploadPhotoMiddleware.single('image'),
-  ValidationMiddleware.validateBody(validateMaster),
+  uploadPhotoMiddleware.single('image'),
+  validationMiddleware(validateMaster),
   MasterController.create
 );
 
 // PATCH /api/admin/masters/:id - обновить мастера
 router.patch('/:id',
-  ValidationMiddleware.validateParams(validateMasterParams),
-  ...UploadPhotoMiddleware.optional('image'),
-  ValidationMiddleware.validateBody(validateMasterUpdate),
+  validationMiddleware(validateMasterParams),
+  uploadPhotoMiddleware.optional('image'),
+  validationMiddleware(validateMasterUpdate),
   MasterController.update
 );
 
 // DELETE /api/admin/masters/:id - удалить мастера
 router.delete('/:id',
-  ValidationMiddleware.validateParams(validateMasterParams),
+  validationMiddleware(validateMasterParams),
   MasterController.delete
 );
 

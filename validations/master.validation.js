@@ -334,5 +334,4 @@ export const masterValidationSchemas = {
   specialityWithSuggestions: validateSpecialityWithSuggestions
 };
 
-export { COMMON_SPECIALITIES };
 export default masterValidationSchemas;

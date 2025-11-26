@@ -1,42 +1,27 @@
 import mongoose from 'mongoose';
 
-const masterSchema = new mongoose.Schema({
-  fullName: {
+const userSchema = new mongoose.Schema({
+  email: {
     type: String,
     required: true,
+    unique: true,
+    lowercase: true,
     trim: true
   },
-  slug: {
+  password: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
-  speciality: {
+  role: {
     type: String,
-    required: true,
-    trim: true
-  },
-  image: {
-    large: {
-      type: String,
-      required: true
-    },
-    medium: {
-      type: String,
-      required: true
-    },
-    thumb: {
-      type: String,
-      required: true
-    }
+    enum: ['admin'],
+    default: 'admin'
   }
 }, {
   timestamps: true,
   versionKey: false
 });
 
-// Индексы
-masterSchema.index({ slug: 1 }, { unique: true });
-masterSchema.index({ createdAt: -1 });
+// Индекс уже создается через unique: true, дублирование не нужно
 
-export default mongoose.model('Master', masterSchema);
+export default mongoose.model('User', userSchema);

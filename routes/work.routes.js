@@ -1,8 +1,8 @@
 import express from 'express';
-import WorkController from '../controllers/work.controller.js';
-import AuthMiddleware from '../middlewares/auth.middleware.js';
-import ValidationMiddleware from '../middlewares/validation.middleware.js';
-import UploadPhotoMiddleware from '../middlewares/uploadPhoto.middleware.js';
+import WorkController from '../controllers/WorkController.js';
+import authMiddleware from '../middlewares/Auth.middleware.js';
+import validationMiddleware from '../middlewares/Validation.middleware.js';
+import uploadPhotoMiddleware from '../middlewares/UploadPhoto.middleware.js';
 import { 
   validateWork, 
   validateWorkParams,
@@ -15,43 +15,43 @@ const router = express.Router();
 
 // GET /api/works - получить все работы
 router.get('/', 
-  ValidationMiddleware.validateQuery(validateWorkQuery),
+  validationMiddleware(validateWorkQuery),
   WorkController.getAll
 );
 
 // GET /api/works/:id - получить работу по ID
 router.get('/:id', 
-  ValidationMiddleware.validateParams(validateWorkParams),
+  validationMiddleware(validateWorkParams),
   WorkController.getById
 );
 
 // GET /api/works/by-category/:categorySlug - работы по категории
 router.get('/by-category/:categorySlug', 
-  ValidationMiddleware.validateQuery(validateWorkQuery),
+  validationMiddleware(validateWorkQuery),
   WorkController.getByCategory
 );
 
 // GET /api/works/latest - получить последние работы (для главной страницы)
 router.get('/latest', 
-  ValidationMiddleware.validateQuery(validateWorkQuery),
+  validationMiddleware(validateWorkQuery),
   WorkController.getLatest
 );
 
 // АДМИНСКИЕ МАРШРУТЫ (требуют авторизации)
 
 // Middleware авторизации для всех админских маршрутов
-router.use(AuthMiddleware.verifyToken);
+router.use(authMiddleware);
 
 // POST /api/admin/works - создать работу
 router.post('/', 
-  ...UploadPhotoMiddleware.single('image'),
-  ValidationMiddleware.validateBody(validateWork),
+  uploadPhotoMiddleware.single('image'),
+  validationMiddleware(validateWork),
   WorkController.create
 );
 
 // DELETE /api/admin/works/:id - удалить работу
 router.delete('/:id',
-  ValidationMiddleware.validateParams(validateWorkParams),
+  validationMiddleware(validateWorkParams),
   WorkController.delete
 );
 

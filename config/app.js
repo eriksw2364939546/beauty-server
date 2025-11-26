@@ -11,21 +11,24 @@ import httpLogger, {
 } from '../loggers/httpLogger.js';
 import logger from '../loggers/logger.js';
 
+// Middlewares
+import authMiddleware from '../middlewares/Auth.middleware.js';
+import uploadPhotoMiddleware from '../middlewares/UploadPhoto.middleware.js';
+import validationMiddleware from '../middlewares/Validation.middleware.js';
 import errorHandlerMiddleware from '../middlewares/ErrorHandler.middleware.js';
 
-
 // Routes
-import authRoutes from '../routes/authRoutes.js';
-import categoryRoutes from '../routes/categoryRoutes.js';
-import serviceRoutes from '../routes/serviceRoutes.js';
-import workRoutes from '../routes/workRoutes.js';
-import masterRoutes from '../routes/masterRoutes.js';
-import productRoutes from '../routes/productRoutes.js';
+import authRoutes from '../routes/auth.routes.js';
+import categoryRoutes from '../routes/category.routes.js';
+import serviceRoutes from '../routes/service.routes.js';
+import workRoutes from '../routes/work.routes.js';
+import masterRoutes from '../routes/master.routes.js';
+import productRoutes from '../routes/product.routes.js';
 import indexRoutes from '../routes/index.js';
 
 // Errors
 import AppError from '../errors/AppError.js';
-import {HTTP_ERRORS} from '../errors/ErrorCodes.js'
+// import { HTTP_ERRORS } from '../errors/errorCodes.js';
 
 // Получение __dirname в ES6 модулях
 const __filename = fileURLToPath(import.meta.url);
@@ -437,3 +440,4 @@ export const readinessMiddleware = (req, res, next) => {
 };
 
 export default createApp;
+export { createApp, authMiddleware, uploadPhotoMiddleware, validationMiddleware };

@@ -1,8 +1,8 @@
 import express from 'express';
-import ProductController from '../controllers/product.controller.js';
-import AuthMiddleware from '../middlewares/auth.middleware.js';
-import ValidationMiddleware from '../middlewares/validation.middleware.js';
-import UploadPhotoMiddleware from '../middlewares/uploadPhoto.middleware.js';
+import ProductController from '../controllers/ProductController.js';
+import authMiddleware from '../middlewares/Auth.middleware.js';
+import validationMiddleware from '../middlewares/Validation.middleware.js';
+import uploadPhotoMiddleware from '../middlewares/UploadPhoto.middleware.js';
 import { 
   validateProduct, 
   validateProductUpdate, 
@@ -17,25 +17,25 @@ const router = express.Router();
 
 // GET /api/products - получить все товары
 router.get('/', 
-  ValidationMiddleware.validateQuery(validateProductQuery),
+  validationMiddleware(validateProductQuery),
   ProductController.getAll
 );
 
 // GET /api/products/search - поиск товаров
 router.get('/search', 
-  ValidationMiddleware.validateQuery(validateProductSearch),
+  validationMiddleware(validateProductSearch),
   ProductController.search
 );
 
 // GET /api/products/featured - рекомендуемые товары (для главной)
 router.get('/featured', 
-  ValidationMiddleware.validateQuery(validateProductQuery),
+  validationMiddleware(validateProductQuery),
   ProductController.getFeatured
 );
 
 // GET /api/products/by-category/:categorySlug - товары по категории
 router.get('/by-category/:categorySlug', 
-  ValidationMiddleware.validateQuery(validateProductQuery),
+  validationMiddleware(validateProductQuery),
   ProductController.getByCategory
 );
 
@@ -51,33 +51,33 @@ router.get('/:slug',
 
 // GET /api/products/id/:id - товар по ID (для админки)
 router.get('/id/:id', 
-  ValidationMiddleware.validateParams(validateProductParams),
+  validationMiddleware(validateProductParams),
   ProductController.getById
 );
 
 // АДМИНСКИЕ МАРШРУТЫ (требуют авторизации)
 
 // Middleware авторизации для всех админских маршрутов
-router.use(AuthMiddleware.verifyToken);
+router.use(authMiddleware);
 
 // POST /api/admin/products - создать товар
 router.post('/', 
-  ...UploadPhotoMiddleware.single('image'),
-  ValidationMiddleware.validateBody(validateProduct),
+  uploadPhotoMiddleware.single('image'),
+  validationMiddleware(validateProduct),
   ProductController.create
 );
 
 // PATCH /api/admin/products/:id - обновить товар
 router.patch('/:id',
-  ValidationMiddleware.validateParams(validateProductParams),
-  ...UploadPhotoMiddleware.optional('image'),
-  ValidationMiddleware.validateBody(validateProductUpdate),
+  validationMiddleware(validateProductParams),
+  uploadPhotoMiddleware.optional('image'),
+  validationMiddleware(validateProductUpdate),
   ProductController.update
 );
 
 // DELETE /api/admin/products/:id - удалить товар
 router.delete('/:id',
-  ValidationMiddleware.validateParams(validateProductParams),
+  validationMiddleware(validateProductParams),
   ProductController.delete
 );
 
