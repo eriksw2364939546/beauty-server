@@ -17,50 +17,50 @@ const router = express.Router();
 // GET /api/services - получить все услуги
 router.get('/', 
   validationMiddleware(validateServiceQuery),
-  ServiceController.getAll
+  ServiceController.getAll.bind(ServiceController)
 );
 
 // GET /api/services/:slug - получить услугу по slug
 router.get('/:slug', 
-  ServiceController.getBySlug
+  ServiceController.getBySlug.bind(ServiceController)
 );
 
 // GET /api/services/by-category/:categorySlug - услуги по категории
 router.get('/by-category/:categorySlug', 
   validationMiddleware(validateServiceQuery),
-  ServiceController.getByCategory
+  ServiceController.getByCategory.bind(ServiceController)
 );
 
 // GET /api/services/id/:id - получить услугу по ID (для админки)
 router.get('/id/:id', 
   validationMiddleware(validateServiceParams),
-  ServiceController.getById
+  ServiceController.getById.bind(ServiceController)
 );
 
 // АДМИНСКИЕ МАРШРУТЫ (требуют авторизации)
 
-// Middleware авторизации для всех админских маршрутов
-router.use(authMiddleware);
-
 // POST /api/admin/services - создать услугу
 router.post('/', 
+  authMiddleware.verifyToken.bind(authMiddleware),
   uploadPhotoMiddleware.single('image'),
   validationMiddleware(validateService),
-  ServiceController.create
+  ServiceController.create.bind(ServiceController)
 );
 
 // PATCH /api/admin/services/:id - обновить услугу
 router.patch('/:id',
+  authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware(validateServiceParams),
-  uploadPhotoMiddleware.optional('image'),
+  uploadPhotoMiddleware.single('image'),
   validationMiddleware(validateServiceUpdate),
-  ServiceController.update
+  ServiceController.update.bind(ServiceController)
 );
 
 // DELETE /api/admin/services/:id - удалить услугу
 router.delete('/:id',
+  authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware(validateServiceParams),
-  ServiceController.delete
+  ServiceController.delete.bind(ServiceController)
 );
 
 export default router;

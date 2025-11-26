@@ -16,48 +16,49 @@ const router = express.Router();
 // GET /api/categories - получить все категории
 router.get('/', 
   validationMiddleware(validateCategoryQuery),
-  CategoryController.getAll
+  CategoryController.getAll.bind(CategoryController)
 );
 
 // GET /api/categories/:id - получить категорию по ID
 router.get('/:id', 
   validationMiddleware(validateCategoryParams),
-  CategoryController.getById
+  CategoryController.getById.bind(CategoryController)
 );
 
 // GET /api/categories/slug/:slug - получить категорию по slug
 router.get('/slug/:slug', 
-  CategoryController.getBySlug
+  CategoryController.getBySlug.bind(CategoryController)
 );
 
 // АДМИНСКИЕ МАРШРУТЫ (требуют авторизации)
 
-// Middleware авторизации для всех админских маршрутов
-router.use(authMiddleware);
-
 // POST /api/admin/categories - создать категорию
 router.post('/', 
+  authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware(validateCategory),
-  CategoryController.create
+  CategoryController.create.bind(CategoryController)
 );
 
 // PATCH /api/admin/categories/:id - обновить категорию
 router.patch('/:id',
+  authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware(validateCategoryParams),
   validationMiddleware(validateCategoryUpdate),
-  CategoryController.update
+  CategoryController.update.bind(CategoryController)
 );
 
 // DELETE /api/admin/categories/:id - удалить категорию
 router.delete('/:id',
+  authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware(validateCategoryParams),
-  CategoryController.delete
+  CategoryController.delete.bind(CategoryController)
 );
 
 // PATCH /api/admin/categories/:id/sort-order - изменить порядок сортировки
 router.patch('/:id/sort-order',
+  authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware(validateCategoryParams),
-  CategoryController.updateSortOrder
+  CategoryController.updateSortOrder.bind(CategoryController)
 );
 
 export default router;

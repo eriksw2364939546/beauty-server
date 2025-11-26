@@ -1,9 +1,3 @@
-#!/usr/bin/env node
-
-/**
- * Точка входа для beauty-сервера
- * Инициализация, подключение к БД и запуск Express приложения
- */
 
 import dotenv from 'dotenv';
 import path from 'path';
@@ -355,15 +349,14 @@ const startServer = async () => {
   }
 };
 
-/**
- * Проверка запуска как главного модуля
- */
-if (import.meta.url === `file://${process.argv[1]}`) {
-  // Запуск приложения с обработкой ошибок
-  startServer().catch((error) => {
-    handleStartupError(error, 'startup process');
-  });
-}
+// =============================================================================
+// ЗАПУСК СЕРВЕРА (исправлено для Windows)
+// =============================================================================
+
+// Просто запускаем сервер напрямую
+startServer().catch((error) => {
+  handleStartupError(error, 'startup process');
+});
 
 // Экспорты для тестирования
 export default startServer;

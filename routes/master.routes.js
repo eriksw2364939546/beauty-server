@@ -17,51 +17,51 @@ const router = express.Router();
 // GET /api/masters - получить всех мастеров
 router.get('/', 
   validationMiddleware(validateMasterQuery),
-  MasterController.getAll
+  MasterController.getAll.bind(MasterController)
 );
 
 // GET /api/masters/:id - получить мастера по ID
 router.get('/:id', 
   validationMiddleware(validateMasterParams),
-  MasterController.getById
+  MasterController.getById.bind(MasterController)
 );
 
 // GET /api/masters/by-speciality - мастера по специальности
 router.get('/by-speciality', 
   validationMiddleware(validateMasterQuery),
-  MasterController.getBySpeciality
+  MasterController.getBySpeciality.bind(MasterController)
 );
 
 // GET /api/masters/featured - избранные мастера (для главной страницы)
 router.get('/featured', 
   validationMiddleware(validateMasterQuery),
-  MasterController.getFeatured
+  MasterController.getFeatured.bind(MasterController)
 );
 
 // АДМИНСКИЕ МАРШРУТЫ (требуют авторизации)
 
-// Middleware авторизации для всех админских маршрутов
-router.use(authMiddleware);
-
 // POST /api/admin/masters - создать мастера
 router.post('/', 
+  authMiddleware.verifyToken.bind(authMiddleware),
   uploadPhotoMiddleware.single('image'),
   validationMiddleware(validateMaster),
-  MasterController.create
+  MasterController.create.bind(MasterController)
 );
 
 // PATCH /api/admin/masters/:id - обновить мастера
 router.patch('/:id',
+  authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware(validateMasterParams),
-  uploadPhotoMiddleware.optional('image'),
+  uploadPhotoMiddleware.single('image'),
   validationMiddleware(validateMasterUpdate),
-  MasterController.update
+  MasterController.update.bind(MasterController)
 );
 
 // DELETE /api/admin/masters/:id - удалить мастера
 router.delete('/:id',
+  authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware(validateMasterParams),
-  MasterController.delete
+  MasterController.delete.bind(MasterController)
 );
 
 export default router;

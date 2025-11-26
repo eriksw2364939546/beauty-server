@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -15,7 +16,7 @@ import logger from '../loggers/logger.js';
 import authMiddleware from '../middlewares/Auth.middleware.js';
 import uploadPhotoMiddleware from '../middlewares/UploadPhoto.middleware.js';
 import validationMiddleware from '../middlewares/Validation.middleware.js';
-import errorHandlerMiddleware from '../middlewares/ErrorHandler.middleware.js';
+import ErrorHandlerMiddleware from '../middlewares/ErrorHandler.middleware.js';
 
 // Routes
 import authRoutes from '../routes/auth.routes.js';
@@ -28,7 +29,6 @@ import indexRoutes from '../routes/index.js';
 
 // Errors
 import AppError from '../errors/AppError.js';
-// import { HTTP_ERRORS } from '../errors/errorCodes.js';
 
 // Получение __dirname в ES6 модулях
 const __filename = fileURLToPath(import.meta.url);
@@ -44,14 +44,8 @@ const createApp = () => {
   // БЕЗОПАСНОСТЬ И БАЗОВЫЕ НАСТРОЙКИ
   // =============================================================================
 
-  // Отключаем X-Powered-By заголовок для безопасности
   app.disable('x-powered-by');
-
-  // Доверяем прокси (важно для получения реального IP)
   app.set('trust proxy', 1);
-
-  // Настройка представлений (если понадобится)
-  app.set('view engine', 'html');
 
   // =============================================================================
   // CORS НАСТРОЙКИ
@@ -59,21 +53,20 @@ const createApp = () => {
 
   const corsOptions = {
     origin: function (origin, callback) {
-      // Разрешенные домены
       const allowedOrigins = [
         'http://localhost:3000',
         'http://localhost:3001', 
+        'http://localhost:5173',
         'http://127.0.0.1:3000',
-        'http://127.0.0.1:3001'
+        'http://127.0.0.1:3001',
+        'http://127.0.0.1:5173'
       ];
 
-      // В production добавляем домены из переменных окружения
       if (process.env.NODE_ENV === 'production') {
         const productionOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
         allowedOrigins.push(...productionOrigins);
       }
 
-      // В development разрешаем все localhost порты
       if (process.env.NODE_ENV === 'development') {
         if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
           return callback(null, true);
@@ -83,11 +76,8 @@ const createApp = () => {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        logger.security('CORS violation attempt', { 
-          origin, 
-          allowedOrigins 
-        });
-        callback(new AppError('CORS policy violation', 403, 'CORS_VIOLATION'));
+        logger.warn('CORS violation attempt', { origin });
+        callback(new Error('CORS policy violation'), false);
       }
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -99,9 +89,9 @@ const createApp = () => {
       'Authorization',
       'X-Request-ID'
     ],
-    credentials: true, // Разрешаем отправку cookies
-    optionsSuccessStatus: 200, // Для старых браузеров
-    maxAge: 86400 // Кешируем preflight запросы на 24 часа
+    credentials: true,
+    optionsSuccessStatus: 200,
+    maxAge: 86400
   };
 
   app.use(cors(corsOptions));
@@ -110,89 +100,49 @@ const createApp = () => {
   // ПАРСИНГ ТЕЛА ЗАПРОСОВ
   // =============================================================================
 
-  // JSON парсер с ограничением размера
   app.use(express.json({ 
     limit: process.env.JSON_LIMIT || '10mb',
-    strict: true,
-    type: 'application/json'
+    strict: true
   }));
 
-  // URL-encoded парсер
   app.use(express.urlencoded({ 
     extended: true, 
-    limit: process.env.URL_ENCODED_LIMIT || '10mb',
-    type: 'application/x-www-form-urlencoded'
+    limit: process.env.URL_ENCODED_LIMIT || '10mb'
   }));
 
-  // Обработка raw данных (если нужно)
-  app.use(express.raw({
-    limit: process.env.RAW_LIMIT || '50mb',
-    type: 'application/octet-stream'
-  }));
+  // Cookie parser для httpOnly cookies
+  app.use(cookieParser());
 
   // =============================================================================
   // ЛОГИРОВАНИЕ И МОНИТОРИНГ
   // =============================================================================
 
-  // Уникальный ID для каждого запроса
   app.use(requestIdMiddleware);
-
-  // HTTP логирование
   app.use(httpLogger);
-
-  // Сбор статистики запросов
   app.use(statsMiddleware);
 
   // =============================================================================
   // СТАТИЧНЫЕ ФАЙЛЫ
   // =============================================================================
 
-  // Обслуживание загруженных файлов
   app.use('/uploads', express.static(
     path.join(__dirname, '../public/uploads'), 
     {
       maxAge: process.env.NODE_ENV === 'production' ? '1y' : 0,
       etag: true,
-      lastModified: true,
-      setHeaders: (res, path) => {
-        // Устанавливаем правильные MIME типы для изображений
-        if (path.endsWith('.webp')) {
-          res.setHeader('Content-Type', 'image/webp');
-        }
-        
-        // Безопасность для загруженных файлов
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.setHeader('X-Frame-Options', 'DENY');
-      }
+      lastModified: true
     }
   ));
 
   // =============================================================================
-  // ДОПОЛНИТЕЛЬНЫЕ ЗАГОЛОВКИ БЕЗОПАСНОСТИ
+  // ЗАГОЛОВКИ БЕЗОПАСНОСТИ
   // =============================================================================
 
   app.use((req, res, next) => {
-    // Основные заголовки безопасности
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    
-    // Content Security Policy (базовый)
-    const csp = [
-      "default-src 'self'",
-      "img-src 'self' data: blob:",
-      "script-src 'self'",
-      "style-src 'self' 'unsafe-inline'",
-      "connect-src 'self'",
-      "font-src 'self'",
-      "object-src 'none'",
-      "media-src 'self'",
-      "frame-src 'none'"
-    ].join('; ');
-    
-    res.setHeader('Content-Security-Policy', csp);
-    
     next();
   });
 
@@ -200,42 +150,26 @@ const createApp = () => {
   // HEALTH CHECK И СИСТЕМНЫЕ МАРШРУТЫ
   // =============================================================================
 
-  // Health check endpoint
   app.get('/api/health', async (req, res) => {
     try {
-      const { checkDatabaseHealth, getDatabaseStats } = await import('../config/database.js');
-      
-      const [dbHealth, dbStats] = await Promise.all([
-        checkDatabaseHealth(),
-        getDatabaseStats().catch(() => ({ error: 'Stats unavailable' }))
-      ]);
+      const { checkDatabaseHealth } = await import('../config/database.js');
+      const dbHealth = await checkDatabaseHealth();
 
-      const { HttpStats } = await import('../loggers/httpLogger.js');
-      
       const healthData = {
-        status: 'ok',
+        status: dbHealth.status === 'healthy' ? 'ok' : 'degraded',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         environment: process.env.NODE_ENV,
-        version: process.env.npm_package_version || '1.0.0',
         database: dbHealth,
         server: {
           memory: process.memoryUsage(),
           pid: process.pid,
-          platform: process.platform,
           nodeVersion: process.version
-        },
-        stats: HttpStats.getStats()
+        }
       };
 
-      // Определяем общий статус
-      const overallStatus = dbHealth.status === 'healthy' ? 'healthy' : 'degraded';
-      const statusCode = overallStatus === 'healthy' ? 200 : 503;
-
-      res.status(statusCode).json({
-        ...healthData,
-        status: overallStatus
-      });
+      const statusCode = dbHealth.status === 'healthy' ? 200 : 503;
+      res.status(statusCode).json(healthData);
       
     } catch (error) {
       logger.error('Health check failed', { error: error.message });
@@ -247,23 +181,12 @@ const createApp = () => {
     }
   });
 
-  // Информация о сервере
   app.get('/api/info', (req, res) => {
     res.json({
       name: 'Beauty Server API',
       version: process.env.npm_package_version || '1.0.0',
       environment: process.env.NODE_ENV,
-      timestamp: new Date().toISOString(),
-      endpoints: {
-        auth: '/api/admin/*',
-        categories: '/api/categories/*',
-        services: '/api/services/*',
-        works: '/api/works/*',
-        masters: '/api/masters/*',
-        products: '/api/products/*',
-        health: '/api/health',
-        docs: '/api/docs'
-      }
+      timestamp: new Date().toISOString()
     });
   });
 
@@ -271,7 +194,6 @@ const createApp = () => {
   // API МАРШРУТЫ
   // =============================================================================
 
-  // Основные маршруты API
   app.use('/api', indexRoutes);
   app.use('/api/admin', authRoutes);
   app.use('/api/categories', categoryRoutes);
@@ -281,35 +203,30 @@ const createApp = () => {
   app.use('/api/products', productRoutes);
 
   // =============================================================================
-  // ОБРАБОТКА ОШИБОК 404
+  // ОБРАБОТКА ОШИБОК 404 (Express 5.x синтаксис)
   // =============================================================================
 
-  // Обработчик для несуществующих маршрутов
-  app.all('*', (req, res, next) => {
+  // Middleware для 404 - должен быть после всех роутов
+  app.use((req, res, next) => {
     logger.warn('Route not found', {
       method: req.method,
       url: req.originalUrl,
-      ip: req.ip,
-      userAgent: req.get('User-Agent')
+      ip: req.ip
     });
 
-    const error = AppError.notFound(
-      `Маршрут ${req.method} ${req.originalUrl} не найден`,
-      'ROUTE_NOT_FOUND'
-    );
-    
-    next(error);
+    res.status(404).json({
+      ok: false,
+      error: 'not_found',
+      message: `Маршрут ${req.method} ${req.originalUrl} не найден`
+    });
   });
 
   // =============================================================================
   // MIDDLEWARE ОБРАБОТКИ ОШИБОК
   // =============================================================================
 
-  // Логирование ошибок
   app.use(errorLoggingMiddleware);
-
-  // Основной обработчик ошибок (должен быть последним!)
-  app.use(errorHandlerMiddleware);
+  app.use(ErrorHandlerMiddleware.handle);
 
   return app;
 };
@@ -329,33 +246,13 @@ export const getAppConfig = () => {
       return {
         ...baseConfig,
         port: parseInt(process.env.PORT) || 80,
-        host: '0.0.0.0', // Слушаем все интерфейсы в production
-        logging: {
-          level: 'warn',
-          enableConsole: false,
-          enableFile: true
-        }
-      };
-    
-    case 'development':
-      return {
-        ...baseConfig,
-        logging: {
-          level: 'debug',
-          enableConsole: true,
-          enableFile: process.env.ENABLE_FILE_LOGS === 'true'
-        }
+        host: '0.0.0.0'
       };
     
     case 'test':
       return {
         ...baseConfig,
-        port: parseInt(process.env.TEST_PORT) || 3001,
-        logging: {
-          level: 'error',
-          enableConsole: false,
-          enableFile: false
-        }
+        port: parseInt(process.env.TEST_PORT) || 3001
       };
     
     default:
@@ -368,75 +265,31 @@ export const getAppConfig = () => {
  */
 export const setupGracefulShutdown = (server) => {
   const gracefulShutdown = (signal) => {
-    logger.system(`Received ${signal}, shutting down gracefully...`);
+    logger.info(`Received ${signal}, shutting down gracefully...`);
     
     server.close(async () => {
-      logger.system('HTTP server closed');
+      logger.info('HTTP server closed');
       
       try {
-        // Закрываем подключение к БД
         const { disconnectDatabase } = await import('../config/database.js');
         await disconnectDatabase();
         
-        logger.system('Graceful shutdown completed');
+        logger.info('Graceful shutdown completed');
         process.exit(0);
       } catch (error) {
-        logger.error('Error during graceful shutdown', { 
-          error: error.message 
-        });
+        logger.error('Error during graceful shutdown', { error: error.message });
         process.exit(1);
       }
     });
 
-    // Принудительное завершение через 30 секунд
     setTimeout(() => {
       logger.error('Could not close connections in time, forcefully shutting down');
       process.exit(1);
     }, 30000);
   };
 
-  // Обработчики сигналов
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
   process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-  // Обработка неперехваченных ошибок
-  process.on('uncaughtException', (error) => {
-    logger.error('Uncaught Exception', { 
-      error: error.message, 
-      stack: error.stack 
-    });
-    process.exit(1);
-  });
-
-  process.on('unhandledRejection', (reason, promise) => {
-    logger.error('Unhandled Rejection', { 
-      reason: reason?.toString(), 
-      promise: promise?.toString() 
-    });
-    process.exit(1);
-  });
-};
-
-/**
- * Middleware для проверки готовности приложения
- */
-export const readinessMiddleware = (req, res, next) => {
-  // Проверяем готовность критических сервисов
-  const { checkDatabaseConnection } = require('../config/database.js');
-  const dbStatus = checkDatabaseConnection();
-  
-  if (!dbStatus.isConnected) {
-    return res.status(503).json({
-      ok: false,
-      error: {
-        message: 'Сервис не готов',
-        code: 'SERVICE_NOT_READY',
-        details: { database: 'disconnected' }
-      }
-    });
-  }
-  
-  next();
 };
 
 export default createApp;

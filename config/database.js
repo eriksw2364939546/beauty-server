@@ -19,47 +19,33 @@ const getDatabaseUrl = () => {
 };
 
 /**
- * Опции подключения к MongoDB
+ * Опции подключения к MongoDB (для Mongoose 8.x)
  */
 const getConnectionOptions = () => {
   const baseOptions = {
-    // Настройки подключения
+    // Настройки пула подключений
     maxPoolSize: parseInt(process.env.DB_MAX_POOL_SIZE) || 10,
     minPoolSize: parseInt(process.env.DB_MIN_POOL_SIZE) || 2,
-    maxIdleTimeMS: parseInt(process.env.DB_MAX_IDLE_TIME) || 30000,
+    
+    // Таймауты
     serverSelectionTimeoutMS: parseInt(process.env.DB_SERVER_SELECTION_TIMEOUT) || 5000,
     socketTimeoutMS: parseInt(process.env.DB_SOCKET_TIMEOUT) || 45000,
     
-    // Настройки буферизации
-    bufferCommands: false,
-    bufferMaxEntries: 0,
-    
-    // Heartbeat и мониторинг
+    // Heartbeat
     heartbeatFrequencyMS: 10000,
     
-    // Настройки для работы с Atlas/реплика-сетами
+    // Настройки для Atlas
     retryWrites: true,
-    w: 'majority',
-    readPreference: 'primary',
-    
-    // Автоматическое переподключение
-    autoReconnect: true,
-    reconnectTries: Number.MAX_VALUE,
-    reconnectInterval: 1000,
-    
-    // Настройки для production
-    useNewUrlParser: true,
-    useUnifiedTopology: true
+    w: 'majority'
   };
 
-  // Дополнительные настройки для разных окружений
+  // Настройки для разных окружений
   switch (process.env.NODE_ENV) {
     case 'production':
       return {
         ...baseOptions,
         maxPoolSize: 20,
         minPoolSize: 5,
-        maxIdleTimeMS: 60000,
         serverSelectionTimeoutMS: 10000
       };
     
@@ -67,8 +53,7 @@ const getConnectionOptions = () => {
       return {
         ...baseOptions,
         maxPoolSize: 5,
-        minPoolSize: 1,
-        maxIdleTimeMS: 15000
+        minPoolSize: 1
       };
     
     case 'test':
@@ -76,9 +61,7 @@ const getConnectionOptions = () => {
         ...baseOptions,
         maxPoolSize: 1,
         minPoolSize: 1,
-        maxIdleTimeMS: 5000,
-        serverSelectionTimeoutMS: 3000,
-        socketTimeoutMS: 10000
+        serverSelectionTimeoutMS: 3000
       };
     
     default:
@@ -90,67 +73,31 @@ const getConnectionOptions = () => {
  * Обработчики событий подключения
  */
 const setupConnectionHandlers = () => {
-  // Успешное подключение
   mongoose.connection.on('connected', () => {
-    logger.system('MongoDB connected successfully', {
+    logger.info('MongoDB connected successfully', {
       database: mongoose.connection.db?.databaseName,
       host: mongoose.connection.host,
-      port: mongoose.connection.port,
-      readyState: mongoose.connection.readyState
+      port: mongoose.connection.port
     });
   });
 
-  // Ошибка подключения
   mongoose.connection.on('error', (error) => {
     logger.error('MongoDB connection error', {
       error: error.message,
-      stack: error.stack,
-      type: 'DATABASE_CONNECTION_ERROR'
+      stack: error.stack
     });
   });
 
-  // Отключение
   mongoose.connection.on('disconnected', () => {
-    logger.warn('MongoDB disconnected', {
-      timestamp: new Date().toISOString()
-    });
+    logger.warn('MongoDB disconnected');
   });
 
-  // Переподключение
   mongoose.connection.on('reconnected', () => {
-    logger.system('MongoDB reconnected', {
-      database: mongoose.connection.db?.databaseName,
-      readyState: mongoose.connection.readyState
-    });
+    logger.info('MongoDB reconnected');
   });
 
-  // Ошибка с индексами
-  mongoose.connection.on('index', (error) => {
-    if (error) {
-      logger.error('MongoDB index error', {
-        error: error.message,
-        type: 'DATABASE_INDEX_ERROR'
-      });
-    } else {
-      logger.database('MongoDB indexes built successfully');
-    }
-  });
-
-  // Потеря соединения
-  mongoose.connection.on('close', () => {
-    logger.warn('MongoDB connection closed');
-  });
-
-  // Состояние "connecting"
   mongoose.connection.on('connecting', () => {
-    logger.database('MongoDB connecting...');
-  });
-
-  // Переподключение после потери связи
-  mongoose.connection.on('reconnectFailed', () => {
-    logger.error('MongoDB reconnection failed', {
-      type: 'DATABASE_RECONNECT_FAILED'
-    });
+    logger.info('MongoDB connecting...');
   });
 };
 
@@ -158,16 +105,10 @@ const setupConnectionHandlers = () => {
  * Настройка глобальных опций Mongoose
  */
 const configureMongoose = () => {
-  // Отключаем строгий режим для гибкости
   mongoose.set('strict', true);
-  
-  // Включаем строгий режим для запросов
   mongoose.set('strictQuery', true);
-  
-  // Отключаем устаревшие предупреждения
   mongoose.set('strictPopulate', false);
   
-  // Настройки для JSON
   mongoose.set('toJSON', {
     virtuals: true,
     transform: function(doc, ret) {
@@ -178,7 +119,6 @@ const configureMongoose = () => {
     }
   });
 
-  // Настройки для Object
   mongoose.set('toObject', {
     virtuals: true,
     transform: function(doc, ret) {
@@ -187,20 +127,6 @@ const configureMongoose = () => {
       delete ret.__v;
       return ret;
     }
-  });
-
-  // Глобальные плагины
-  mongoose.plugin((schema) => {
-    // Автоматически добавляем метод toJSON для всех схем
-    schema.set('toJSON', {
-      virtuals: true,
-      versionKey: false,
-      transform: function(doc, ret) {
-        ret.id = ret._id;
-        delete ret._id;
-        return ret;
-      }
-    });
   });
 };
 
@@ -237,7 +163,6 @@ export const getDatabaseStats = async () => {
 
     const admin = mongoose.connection.db.admin();
     const stats = await mongoose.connection.db.stats();
-    const serverStatus = await admin.serverStatus();
     
     return {
       database: {
@@ -248,102 +173,11 @@ export const getDatabaseStats = async () => {
         indexSize: stats.indexSize,
         storageSize: stats.storageSize
       },
-      server: {
-        version: serverStatus.version,
-        uptime: serverStatus.uptime,
-        connections: serverStatus.connections,
-        memory: serverStatus.mem
-      },
       connection: checkDatabaseConnection()
     };
   } catch (error) {
-    logger.error('Failed to get database stats', {
-      error: error.message,
-      type: 'DATABASE_STATS_ERROR'
-    });
+    logger.error('Failed to get database stats', { error: error.message });
     return { error: error.message };
-  }
-};
-
-/**
- * Создание резервной копии (базовая версия)
- */
-export const createBackupInfo = () => {
-  const connection = checkDatabaseConnection();
-  if (!connection.isConnected) {
-    throw new Error('Database is not connected');
-  }
-
-  return {
-    timestamp: new Date().toISOString(),
-    database: connection.database,
-    host: connection.host,
-    port: connection.port,
-    environment: process.env.NODE_ENV,
-    note: 'Use mongodump for actual backup creation'
-  };
-};
-
-/**
- * Основная функция подключения к базе данных
- */
-export const connectDatabase = async () => {
-  try {
-    const databaseUrl = getDatabaseUrl();
-    const options = getConnectionOptions();
-    
-    logger.database('Connecting to MongoDB...', {
-      environment: process.env.NODE_ENV,
-      url: databaseUrl.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@') // Скрываем пароль в логах
-    });
-
-    // Настраиваем Mongoose
-    configureMongoose();
-    
-    // Устанавливаем обработчики событий
-    setupConnectionHandlers();
-
-    // Подключаемся к базе данных
-    await mongoose.connect(databaseUrl, options);
-    
-    // Проверяем подключение
-    const connectionInfo = checkDatabaseConnection();
-    
-    if (!connectionInfo.isConnected) {
-      throw new Error('Failed to establish database connection');
-    }
-
-    logger.system('Database connection established', connectionInfo);
-    
-    return connectionInfo;
-
-  } catch (error) {
-    logger.error('Failed to connect to database', {
-      error: error.message,
-      stack: error.stack,
-      type: 'DATABASE_CONNECTION_FAILED'
-    });
-    
-    throw error;
-  }
-};
-
-/**
- * Graceful отключение от базы данных
- */
-export const disconnectDatabase = async () => {
-  try {
-    if (mongoose.connection.readyState === 1) {
-      logger.database('Closing database connection...');
-      await mongoose.connection.close();
-      logger.system('Database connection closed successfully');
-    }
-  } catch (error) {
-    logger.error('Error closing database connection', {
-      error: error.message,
-      type: 'DATABASE_DISCONNECT_ERROR'
-    });
-    throw error;
   }
 };
 
@@ -362,7 +196,6 @@ export const checkDatabaseHealth = async () => {
       };
     }
 
-    // Простой запрос для проверки
     await mongoose.connection.db.admin().ping();
     
     return {
@@ -373,10 +206,7 @@ export const checkDatabaseHealth = async () => {
     };
     
   } catch (error) {
-    logger.error('Database health check failed', {
-      error: error.message,
-      type: 'DATABASE_HEALTH_CHECK_FAILED'
-    });
+    logger.error('Database health check failed', { error: error.message });
     
     return {
       status: 'unhealthy',
@@ -384,6 +214,60 @@ export const checkDatabaseHealth = async () => {
       connection: checkDatabaseConnection(),
       timestamp: new Date().toISOString()
     };
+  }
+};
+
+/**
+ * Основная функция подключения к базе данных
+ */
+export const connectDatabase = async () => {
+  try {
+    const databaseUrl = getDatabaseUrl();
+    const options = getConnectionOptions();
+    
+    logger.info('Connecting to MongoDB...', {
+      environment: process.env.NODE_ENV,
+      url: databaseUrl.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')
+    });
+
+    configureMongoose();
+    setupConnectionHandlers();
+
+    await mongoose.connect(databaseUrl, options);
+    
+    const connectionInfo = checkDatabaseConnection();
+    
+    if (!connectionInfo.isConnected) {
+      throw new Error('Failed to establish database connection');
+    }
+
+    logger.info('Database connection established', connectionInfo);
+    
+    return connectionInfo;
+
+  } catch (error) {
+    logger.error('Failed to connect to database', {
+      error: error.message,
+      stack: error.stack
+    });
+    
+    throw error;
+  }
+};
+
+/**
+ * Отключение от базы данных
+ */
+export const disconnectDatabase = async () => {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      logger.info('Closing database connection...');
+      await mongoose.connection.close();
+      logger.info('Database connection closed successfully');
+    }
+  } catch (error) {
+    logger.error('Error closing database connection', { error: error.message });
+    throw error;
   }
 };
 
@@ -398,52 +282,16 @@ export const clearDatabase = async () => {
   try {
     const collections = await mongoose.connection.db.collections();
     
-    const clearPromises = collections.map(async (collection) => {
+    for (const collection of collections) {
       await collection.deleteMany({});
-    });
+    }
     
-    await Promise.all(clearPromises);
-    
-    logger.database('Test database cleared');
+    logger.info('Test database cleared');
   } catch (error) {
-    logger.error('Failed to clear test database', {
-      error: error.message
-    });
+    logger.error('Failed to clear test database', { error: error.message });
     throw error;
   }
 };
-
-// Обработка graceful shutdown
-process.on('SIGINT', async () => {
-  logger.system('Received SIGINT, closing database connection...');
-  await disconnectDatabase();
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  logger.system('Received SIGTERM, closing database connection...');
-  await disconnectDatabase();
-  process.exit(0);
-});
-
-// Обработка неперехваченных ошибок
-process.on('uncaughtException', async (error) => {
-  logger.error('Uncaught exception, closing database connection', {
-    error: error.message,
-    stack: error.stack
-  });
-  await disconnectDatabase();
-  process.exit(1);
-});
-
-process.on('unhandledRejection', async (reason, promise) => {
-  logger.error('Unhandled rejection, closing database connection', {
-    reason: reason?.toString(),
-    promise: promise?.toString()
-  });
-  await disconnectDatabase();
-  process.exit(1);
-});
 
 export default {
   connect: connectDatabase,

@@ -1,3 +1,6 @@
+/**
+ * Middleware для валидации данных с использованием Joi
+ */
 
 class ValidationMiddleware {
   // Основной метод валидации с использованием Joi схем
@@ -26,9 +29,9 @@ class ValidationMiddleware {
 
         // Выполняем валидацию
         const { error, value } = schema.validate(dataToValidate, {
-          abortEarly: false, // Показать все ошибки
-          allowUnknown: false, // Не разрешать неизвестные поля
-          stripUnknown: true // Удалять неизвестные поля
+          abortEarly: false,
+          allowUnknown: false,
+          stripUnknown: true
         });
 
         if (error) {
@@ -98,7 +101,6 @@ class ValidationMiddleware {
       try {
         const errors = [];
 
-        // Валидируем каждый источник если схема предоставлена
         if (schemas.body) {
           const { error, value } = schemas.body.validate(req.body, {
             abortEarly: false,
@@ -156,7 +158,6 @@ class ValidationMiddleware {
           }
         }
 
-        // Если есть ошибки, возвращаем их
         if (errors.length > 0) {
           return res.status(400).json({
             ok: false,
@@ -169,37 +170,6 @@ class ValidationMiddleware {
         next();
       } catch (validationError) {
         console.error('Multiple validation middleware error:', validationError);
-        return res.status(500).json({
-          ok: false,
-          error: 'validation_middleware_error',
-          message: 'Ошибка в middleware валидации'
-        });
-      }
-    };
-  }
-
-  // Валидация с кастомной функцией
-  static validateCustom(validationFunction) {
-    return async (req, res, next) => {
-      try {
-        const result = await validationFunction(req);
-        
-        if (result.isValid) {
-          // Обновляем данные если функция их изменила
-          if (result.data) {
-            Object.assign(req, result.data);
-          }
-          next();
-        } else {
-          return res.status(400).json({
-            ok: false,
-            error: 'validation_error',
-            message: result.message || 'Ошибка валидации данных',
-            details: result.details || []
-          });
-        }
-      } catch (error) {
-        console.error('Custom validation middleware error:', error);
         return res.status(500).json({
           ok: false,
           error: 'validation_middleware_error',
@@ -238,4 +208,22 @@ class ValidationMiddleware {
   }
 }
 
-export default ValidationMiddleware;
+/**
+ * Функция-обёртка для использования как validationMiddleware(schema)
+ * По умолчанию валидирует body
+ */
+const validationMiddleware = (schema, source = 'body') => {
+  return ValidationMiddleware.validate(schema, source);
+};
+
+// Добавляем статические методы к функции
+validationMiddleware.validate = ValidationMiddleware.validate;
+validationMiddleware.validateBody = ValidationMiddleware.validateBody;
+validationMiddleware.validateParams = ValidationMiddleware.validateParams;
+validationMiddleware.validateQuery = ValidationMiddleware.validateQuery;
+validationMiddleware.validateHeaders = ValidationMiddleware.validateHeaders;
+validationMiddleware.validateMultiple = ValidationMiddleware.validateMultiple;
+validationMiddleware.requireFields = ValidationMiddleware.requireFields;
+
+export default validationMiddleware;
+export { ValidationMiddleware, validationMiddleware };

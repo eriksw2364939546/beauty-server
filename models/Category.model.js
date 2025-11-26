@@ -9,7 +9,7 @@ const categorySchema = new mongoose.Schema({
   slug: {
     type: String,
     required: true,
-    unique: true,
+    unique: true,  // Это уже создаёт индекс
     lowercase: true
   },
   section: {
@@ -26,8 +26,7 @@ const categorySchema = new mongoose.Schema({
   versionKey: false
 });
 
-// Индексы
-categorySchema.index({ slug: 1 }, { unique: true });
+
 categorySchema.index({ section: 1, sortOrder: 1 });
 
 export default mongoose.model('Category', categorySchema);

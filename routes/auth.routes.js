@@ -1,3 +1,4 @@
+import express from 'express';
 import AuthController from '../controllers/AuthController.js';
 import authMiddleware from '../middlewares/Auth.middleware.js';
 import validationMiddleware from '../middlewares/Validation.middleware.js';
@@ -8,42 +9,32 @@ const router = express.Router();
 // POST /api/admin/login - вход в админку
 router.post('/login', 
   validationMiddleware.validateBody(validateLogin),
-  AuthController.login
+  AuthController.login.bind(AuthController)
 );
 
 // POST /api/admin/logout - выход из админки
-router.post('/logout', AuthController.logout);
+router.post('/logout', AuthController.logout.bind(AuthController));
 
 // GET /api/admin/me - получить данные текущего админа
 router.get('/me', 
-  authMiddleware.verifyToken,
-  AuthController.getProfile
+  authMiddleware.verifyToken.bind(authMiddleware),
+  AuthController.me.bind(AuthController)
 );
 
-// PATCH /api/admin/change-password - изменить пароль
-router.patch('/change-password',
-  authMiddleware.verifyToken,
-  validationMiddleware.validateBody(validateChangePassword),
-  AuthController.changePassword
-);
-
-// PATCH /api/admin/change-email - изменить email
-router.patch('/change-email',
-  authMiddleware.verifyToken,
+// PATCH /api/admin/profile - обновить профиль (email/пароль)
+router.patch('/profile',
+  authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware.validateBody(validateChangeEmail),
-  AuthController.changeEmail
+  AuthController.updateProfile.bind(AuthController)
 );
 
-// POST /api/admin/refresh - обновить токен
-router.post('/refresh',
-  authMiddleware.quickTokenCheck,
-  AuthController.refreshToken
+// GET /api/admin/verify - проверить токен
+router.get('/verify',
+  authMiddleware.verifyToken.bind(authMiddleware),
+  AuthController.verifyToken.bind(AuthController)
 );
 
-// GET /api/admin/check-auth - быстрая проверка авторизации
-router.get('/check-auth',
-  authMiddleware.optionalAuth,
-  AuthController.checkAuth
-);
+// POST /api/admin/init - инициализация (создание дефолтного админа)
+router.post('/init', AuthController.initializeAdmin.bind(AuthController));
 
 export default router;

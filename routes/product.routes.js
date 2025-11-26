@@ -18,67 +18,67 @@ const router = express.Router();
 // GET /api/products - получить все товары
 router.get('/', 
   validationMiddleware(validateProductQuery),
-  ProductController.getAll
+  ProductController.getAll.bind(ProductController)
 );
 
 // GET /api/products/search - поиск товаров
 router.get('/search', 
   validationMiddleware(validateProductSearch),
-  ProductController.search
+  ProductController.search.bind(ProductController)
 );
 
 // GET /api/products/featured - рекомендуемые товары (для главной)
 router.get('/featured', 
   validationMiddleware(validateProductQuery),
-  ProductController.getFeatured
+  ProductController.getFeatured.bind(ProductController)
 );
 
 // GET /api/products/by-category/:categorySlug - товары по категории
 router.get('/by-category/:categorySlug', 
   validationMiddleware(validateProductQuery),
-  ProductController.getByCategory
+  ProductController.getByCategory.bind(ProductController)
 );
 
 // GET /api/products/code/:code - товар по артикулу
 router.get('/code/:code', 
-  ProductController.getByCode
+  ProductController.getByCode.bind(ProductController)
 );
 
 // GET /api/products/:slug - товар по slug
 router.get('/:slug', 
-  ProductController.getBySlug
+  ProductController.getBySlug.bind(ProductController)
 );
 
 // GET /api/products/id/:id - товар по ID (для админки)
 router.get('/id/:id', 
   validationMiddleware(validateProductParams),
-  ProductController.getById
+  ProductController.getById.bind(ProductController)
 );
 
 // АДМИНСКИЕ МАРШРУТЫ (требуют авторизации)
 
-// Middleware авторизации для всех админских маршрутов
-router.use(authMiddleware);
-
 // POST /api/admin/products - создать товар
 router.post('/', 
+  authMiddleware.verifyToken.bind(authMiddleware),
   uploadPhotoMiddleware.single('image'),
   validationMiddleware(validateProduct),
-  ProductController.create
+  ProductController.create.bind(ProductController)
 );
 
 // PATCH /api/admin/products/:id - обновить товар
 router.patch('/:id',
+  authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware(validateProductParams),
-  uploadPhotoMiddleware.optional('image'),
+  uploadPhotoMiddleware.single('image'),
   validationMiddleware(validateProductUpdate),
-  ProductController.update
+  ProductController.update.bind(ProductController)
 );
 
 // DELETE /api/admin/products/:id - удалить товар
 router.delete('/:id',
+  authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware(validateProductParams),
-  ProductController.delete
+  ProductController.delete.bind(ProductController)
 );
 
 export default router;
