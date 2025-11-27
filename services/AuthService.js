@@ -77,13 +77,29 @@ class AuthService {
   // Авторизация администратора
   async login(email, password) {
     try {
-      // Шифруем введённый email для поиска в БД
-      const encryptedEmail = encryptString(email.toLowerCase());
+      const inputEmail = email.toLowerCase().trim();
 
-      // Поиск пользователя по зашифрованному email
-      const user = await User.findOne({ email: encryptedEmail });
+      // Получаем всех пользователей
+      const users = await User.find({});
 
-      if (!user) {
+      // Ищем пользователя, расшифровывая email каждого
+      let foundUser = null;
+
+      for (const user of users) {
+        try {
+          const decryptedEmail = decryptString(user.email);
+
+          if (decryptedEmail.toLowerCase() === inputEmail) {
+            foundUser = user;
+            break;
+          }
+        } catch (decryptError) {
+          console.warn('⚠️ Не удалось расшифровать email пользователя:', user._id);
+          continue;
+        }
+      }
+
+      if (!foundUser) {
         return {
           success: false,
           message: 'Неверный email или пароль'
@@ -91,7 +107,7 @@ class AuthService {
       }
 
       // Проверка пароля
-      const isPasswordValid = await comparePassword(password, user.password);
+      const isPasswordValid = await comparePassword(password, foundUser.password);
 
       if (!isPasswordValid) {
         return {
@@ -100,21 +116,21 @@ class AuthService {
         };
       }
 
-      // Генерация JWT токена (используем расшифрованный email)
+      // Генерация JWT токена
       const token = createToken({
-        userId: user._id.toString(),
-        email: email.toLowerCase(),
-        role: user.role
+        userId: foundUser._id.toString(),
+        email: inputEmail,
+        role: foundUser.role
       });
 
       return {
         success: true,
         token,
         user: {
-          id: user._id,
-          email: email.toLowerCase(), // Возвращаем оригинальный email
-          role: user.role,
-          createdAt: user.createdAt
+          id: foundUser._id,
+          email: inputEmail,
+          role: foundUser.role,
+          createdAt: foundUser.createdAt
         }
       };
 
@@ -156,10 +172,11 @@ class AuthService {
     }
   }
 
-  // Обновление профиля администратора
+  // Обновление профиля администратора (email и/или пароль)
   async updateProfile(userId, updateData) {
     try {
-      const { email, password, currentPassword } = updateData;
+      const { currentPassword, email, password } = updateData;
+
       const user = await User.findById(userId);
 
       if (!user) {
@@ -169,58 +186,70 @@ class AuthService {
         };
       }
 
-      // Если обновляется пароль, проверяем текущий пароль
-      if (password) {
-        if (!currentPassword) {
-          return {
-            success: false,
-            message: 'Необходимо указать текущий пароль'
-          };
-        }
+      // Проверяем текущий пароль (обязательно для любых изменений)
+      const isCurrentPasswordValid = await comparePassword(currentPassword, user.password);
 
-        const isCurrentPasswordValid = await comparePassword(currentPassword, user.password);
-
-        if (!isCurrentPasswordValid) {
-          return {
-            success: false,
-            message: 'Неверный текущий пароль'
-          };
-        }
-
-        // Хешируем новый пароль
-        user.password = await hashPassword(password);
+      if (!isCurrentPasswordValid) {
+        return {
+          success: false,
+          message: 'Неверный текущий пароль'
+        };
       }
+
+      let emailChanged = false;
+      let passwordChanged = false;
 
       // Обновляем email если передан
       if (email) {
-        const newEmailLower = email.toLowerCase();
-        const encryptedNewEmail = encryptString(newEmailLower);
+        const newEmailLower = email.toLowerCase().trim();
 
         // Расшифровываем текущий email для сравнения
         const currentDecryptedEmail = decryptString(user.email);
 
-        if (newEmailLower !== currentDecryptedEmail) {
-          // Проверяем что email не занят
-          const existingUser = await User.findOne({
-            email: encryptedNewEmail,
-            _id: { $ne: userId }
-          });
+        if (newEmailLower !== currentDecryptedEmail.toLowerCase()) {
+          // Проверяем что email не занят (расшифровывая все записи)
+          const allUsers = await User.find({ _id: { $ne: userId } });
 
-          if (existingUser) {
-            return {
-              success: false,
-              message: 'Email уже используется'
-            };
+          for (const otherUser of allUsers) {
+            try {
+              const otherEmail = decryptString(otherUser.email);
+              if (otherEmail.toLowerCase() === newEmailLower) {
+                return {
+                  success: false,
+                  message: 'Email уже используется'
+                };
+              }
+            } catch (decryptError) {
+              continue;
+            }
           }
 
-          user.email = encryptedNewEmail;
+          // Шифруем и сохраняем новый email
+          user.email = encryptString(newEmailLower);
+          emailChanged = true;
         }
+      }
+
+      // Обновляем пароль если передан
+      if (password) {
+        user.password = await hashPassword(password);
+        passwordChanged = true;
       }
 
       await user.save();
 
       // Расшифровываем email для ответа
       const decryptedEmail = decryptString(user.email);
+
+      // Формируем сообщение об изменениях
+      let message = 'Профиль успешно обновлён';
+      if (emailChanged && passwordChanged) {
+        message = 'Email и пароль успешно обновлены';
+      } else if (emailChanged) {
+        message = 'Email успешно обновлён';
+      } else if (passwordChanged) {
+        message = 'Пароль успешно обновлён';
+      }
 
       return {
         success: true,
@@ -230,7 +259,7 @@ class AuthService {
           role: user.role,
           updatedAt: user.updatedAt
         },
-        message: 'Профиль успешно обновлен'
+        message
       };
 
     } catch (error) {

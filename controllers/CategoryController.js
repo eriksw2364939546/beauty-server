@@ -1,27 +1,29 @@
 import CategoryService from '../services/CategoryService.js';
-import { validateCategory, validateCategoryUpdate } from '../validations/category.validation.js';
 
 class CategoryController {
   // GET /api/categories - получить все категории
   async getAll(req, res, next) {
     try {
       const { section, page, limit } = req.query;
-      
-      const result = await CategoryService.getAll({
+
+      const result = await CategoryService.getAllCategories({
         section,
         page: parseInt(page) || 1,
         limit: parseInt(limit) || 10
       });
 
+      if (!result.success) {
+        return res.status(400).json({
+          ok: false,
+          error: 'fetch_error',
+          message: result.message
+        });
+      }
+
       res.json({
         ok: true,
-        data: result.categories,
-        meta: {
-          page: result.page,
-          total: result.total,
-          limit: result.limit,
-          totalPages: result.totalPages
-        }
+        data: result.data,
+        meta: result.meta
       });
     } catch (error) {
       next(error);
@@ -32,12 +34,20 @@ class CategoryController {
   async getById(req, res, next) {
     try {
       const { id } = req.params;
-      
-      const category = await CategoryService.getById(id);
+
+      const result = await CategoryService.getCategoryById(id);
+
+      if (!result.success) {
+        return res.status(404).json({
+          ok: false,
+          error: 'not_found',
+          message: result.message
+        });
+      }
 
       res.json({
         ok: true,
-        data: category
+        data: result.data
       });
     } catch (error) {
       next(error);
@@ -48,12 +58,20 @@ class CategoryController {
   async getBySlug(req, res, next) {
     try {
       const { slug } = req.params;
-      
-      const category = await CategoryService.getBySlug(slug);
+
+      const result = await CategoryService.getCategoryBySlug(slug);
+
+      if (!result.success) {
+        return res.status(404).json({
+          ok: false,
+          error: 'not_found',
+          message: result.message
+        });
+      }
 
       res.json({
         ok: true,
-        data: category
+        data: result.data
       });
     } catch (error) {
       next(error);
@@ -63,22 +81,21 @@ class CategoryController {
   // POST /api/admin/categories - создать категорию
   async create(req, res, next) {
     try {
-      // Валидация входных данных
-      const { error, value } = validateCategory(req.body);
-      
-      if (error) {
+      // Валидация уже выполнена в middleware
+      const result = await CategoryService.createCategory(req.body);
+
+      if (!result.success) {
         return res.status(400).json({
           ok: false,
-          error: 'validation_error',
-          details: error.details
+          error: 'create_error',
+          message: result.message
         });
       }
 
-      const category = await CategoryService.create(value);
-
       res.status(201).json({
         ok: true,
-        data: category
+        data: result.data,
+        message: result.message
       });
     } catch (error) {
       next(error);
@@ -90,22 +107,21 @@ class CategoryController {
     try {
       const { id } = req.params;
 
-      // Валидация входных данных
-      const { error, value } = validateCategoryUpdate(req.body);
-      
-      if (error) {
+      // Валидация уже выполнена в middleware
+      const result = await CategoryService.updateCategory(id, req.body);
+
+      if (!result.success) {
         return res.status(400).json({
           ok: false,
-          error: 'validation_error',
-          details: error.details
+          error: 'update_error',
+          message: result.message
         });
       }
 
-      const category = await CategoryService.update(id, value);
-
       res.json({
         ok: true,
-        data: category
+        data: result.data,
+        message: result.message
       });
     } catch (error) {
       next(error);
@@ -117,11 +133,19 @@ class CategoryController {
     try {
       const { id } = req.params;
 
-      await CategoryService.delete(id);
+      const result = await CategoryService.deleteCategory(id);
+
+      if (!result.success) {
+        return res.status(400).json({
+          ok: false,
+          error: 'delete_error',
+          message: result.message
+        });
+      }
 
       res.json({
         ok: true,
-        message: 'Категория удалена'
+        message: result.message
       });
     } catch (error) {
       next(error);
@@ -142,11 +166,20 @@ class CategoryController {
         });
       }
 
-      const category = await CategoryService.updateSortOrder(id, sortOrder);
+      const result = await CategoryService.updateCategory(id, { sortOrder });
+
+      if (!result.success) {
+        return res.status(400).json({
+          ok: false,
+          error: 'update_error',
+          message: result.message
+        });
+      }
 
       res.json({
         ok: true,
-        data: category
+        data: result.data,
+        message: 'Порядок сортировки обновлён'
       });
     } catch (error) {
       next(error);

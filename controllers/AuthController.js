@@ -5,11 +5,8 @@ class AuthController {
   // Логин администратора
   async login(req, res) {
     try {
-      // Валидация уже выполнена в middleware (validationMiddleware.validateBody)
-      // req.body уже провалидирован и очищен
       const { email, password } = req.body;
 
-      // Авторизация через сервис
       const result = await AuthService.login(email, password);
 
       if (!result.success) {
@@ -32,7 +29,7 @@ class AuthController {
         ok: true,
         data: {
           user: result.user,
-          token: result.token, // Также возвращаем токен в ответе для Postman
+          token: result.token,
           message: 'Успешная авторизация'
         }
       });
@@ -50,7 +47,6 @@ class AuthController {
   // Логаут администратора
   async logout(req, res) {
     try {
-      // Удаляем cookie с токеном
       res.clearCookie('admin_token', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -77,7 +73,6 @@ class AuthController {
     try {
       const userId = req.user.id;
 
-      // Получение данных пользователя через сервис
       const result = await AuthService.getUserById(userId);
 
       if (!result.success) {
@@ -105,14 +100,17 @@ class AuthController {
     }
   }
 
-  // Обновление профиля (смена email)
+  // Обновление профиля (email и/или пароль)
   async updateProfile(req, res) {
     try {
-      // Валидация уже выполнена в middleware
       const userId = req.user.id;
-      const { newEmail, password } = req.body;
+      const { currentPassword, newEmail, newPassword } = req.body;
 
-      const result = await AuthService.updateProfile(userId, { newEmail, password });
+      const result = await AuthService.updateProfile(userId, {
+        currentPassword,
+        email: newEmail,
+        password: newPassword
+      });
 
       if (!result.success) {
         return res.status(400).json({
@@ -126,7 +124,7 @@ class AuthController {
         ok: true,
         data: {
           user: result.user,
-          message: 'Профиль успешно обновлён'
+          message: result.message
         }
       });
 
@@ -143,7 +141,6 @@ class AuthController {
   // Проверка валидности токена
   async verifyToken(req, res) {
     try {
-      // Если дошли сюда — токен валиден (проверен в authMiddleware)
       return res.status(200).json({
         ok: true,
         data: {

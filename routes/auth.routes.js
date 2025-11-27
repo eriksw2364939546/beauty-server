@@ -2,12 +2,12 @@ import express from 'express';
 import AuthController from '../controllers/AuthController.js';
 import authMiddleware from '../middlewares/Auth.middleware.js';
 import validationMiddleware from '../middlewares/Validation.middleware.js';
-import { validateLogin, validateChangePassword, validateChangeEmail } from '../validations/auth.validation.js';
+import { validateLogin, validateUpdateProfile } from '../validations/auth.validation.js';
 
 const router = express.Router();
 
 // POST /api/admin/login - вход в админку
-router.post('/login', 
+router.post('/login',
   validationMiddleware.validateBody(validateLogin),
   AuthController.login.bind(AuthController)
 );
@@ -16,15 +16,15 @@ router.post('/login',
 router.post('/logout', AuthController.logout.bind(AuthController));
 
 // GET /api/admin/me - получить данные текущего админа
-router.get('/me', 
+router.get('/me',
   authMiddleware.verifyToken.bind(authMiddleware),
   AuthController.me.bind(AuthController)
 );
 
-// PATCH /api/admin/profile - обновить профиль (email/пароль)
-router.patch('/profile',
+// PUT /api/admin/profile - обновить профиль (email и/или пароль)
+router.put('/profile',
   authMiddleware.verifyToken.bind(authMiddleware),
-  validationMiddleware.validateBody(validateChangeEmail),
+  validationMiddleware.validateBody(validateUpdateProfile),
   AuthController.updateProfile.bind(AuthController)
 );
 
