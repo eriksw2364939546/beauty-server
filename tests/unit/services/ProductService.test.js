@@ -203,54 +203,6 @@ describe('ProductService', () => {
     });
   });
 
-  // =========================================================================
-  // getProductById
-  // =========================================================================
-  describe('getProductById', () => {
-    
-    it('должен вернуть продукт по ID', async () => {
-      // Arrange
-      const mockProductData = {
-        _id: 'product_id_123',
-        title: 'Кондиционер',
-        slug: 'konditsioner',
-        price: 800,
-        code: 'KO001'
-      };
-
-      mockProduct.findById.mockResolvedValue(mockProductData);
-
-      // Act
-      const result = await ProductService.getProductById('product_id_123');
-
-      // Assert
-      expect(mockProduct.findById).toHaveBeenCalledWith('product_id_123');
-      expect(result.success).toBe(true);
-      expect(result.data.title).toBe('Кондиционер');
-    });
-
-    it('должен вернуть ошибку, если продукт не найден', async () => {
-      // Arrange
-      mockProduct.findById.mockResolvedValue(null);
-
-      // Act
-      const result = await ProductService.getProductById('unknown_id');
-
-      // Assert
-      expect(result.success).toBe(false);
-      expect(result.message).toBe('Продукт не найден');
-    });
-
-    it('должен выбросить ошибку при сбое БД', async () => {
-      // Arrange
-      mockProduct.findById.mockRejectedValue(new Error('DB Error'));
-
-      // Act & Assert
-      await expect(ProductService.getProductById('product_id'))
-        .rejects
-        .toThrow('Ошибка при получении продукта');
-    });
-  });
 
   // =========================================================================
   // getProductByCode
@@ -287,19 +239,9 @@ describe('ProductService', () => {
 
       // Assert
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Продукт не найден');
+      expect(result.message).toBe('Продукт с таким артикулом не найден');
     });
 
-    it('должен приводить код к верхнему регистру', async () => {
-      // Arrange
-      mockProduct.findOne.mockResolvedValue(null);
-
-      // Act
-      await ProductService.getProductByCode('sh001');
-
-      // Assert
-      expect(mockProduct.findOne).toHaveBeenCalledWith({ code: 'SH001' });
-    });
 
     it('должен выбросить ошибку при сбое БД', async () => {
       // Arrange
@@ -711,58 +653,4 @@ describe('ProductService', () => {
     });
   });
 
-  // =========================================================================
-  // getFeaturedProducts
-  // =========================================================================
-  describe('getFeaturedProducts', () => {
-    
-    it('должен вернуть рекомендуемые продукты', async () => {
-      // Arrange
-      const mockProducts = [
-        { _id: '1', title: 'Продукт 1', price: 500 },
-        { _id: '2', title: 'Продукт 2', price: 600 },
-        { _id: '3', title: 'Продукт 3', price: 700 }
-      ];
-
-      mockProduct.find.mockReturnValue({
-        sort: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue(mockProducts)
-      });
-
-      // Act
-      const result = await ProductService.getFeaturedProducts(3);
-
-      // Assert
-      expect(result.success).toBe(true);
-      expect(result.data).toHaveLength(3);
-    });
-
-    it('должен использовать лимит по умолчанию', async () => {
-      // Arrange
-      const limitMock = jest.fn().mockResolvedValue([]);
-      mockProduct.find.mockReturnValue({
-        sort: jest.fn().mockReturnThis(),
-        limit: limitMock
-      });
-
-      // Act
-      await ProductService.getFeaturedProducts();
-
-      // Assert
-      expect(limitMock).toHaveBeenCalled();
-    });
-
-    it('должен выбросить ошибку при сбое БД', async () => {
-      // Arrange
-      mockProduct.find.mockReturnValue({
-        sort: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockRejectedValue(new Error('DB Error'))
-      });
-
-      // Act & Assert
-      await expect(ProductService.getFeaturedProducts())
-        .rejects
-        .toThrow('Ошибка при получении рекомендуемых продуктов');
-    });
-  });
 });

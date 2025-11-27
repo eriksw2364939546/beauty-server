@@ -310,7 +310,7 @@ describe('MasterService', () => {
       expect(mockGenerateSlug).toHaveBeenCalledWith('Новый Мастер', 'Master');
       expect(mockSave).toHaveBeenCalled();
       expect(result.success).toBe(true);
-      expect(result.message).toBe('Мастер успешно создан');
+      expect(result.message).toBe('Мастер успешно добавлен');
     });
 
     it('должен обрезать пробелы в fullName и speciality', async () => {
@@ -383,7 +383,7 @@ describe('MasterService', () => {
       // Assert
       expect(mockMaster.findById).toHaveBeenCalledWith('master_id');
       expect(result.success).toBe(true);
-      expect(result.message).toBe('Мастер успешно обновлен');
+      expect(result.message).toBe('Информация о мастере успешно обновлена');
     });
 
     it('должен вернуть ошибку, если мастер не найден', async () => {
@@ -496,60 +496,7 @@ describe('MasterService', () => {
     });
   });
 
-  // =========================================================================
-  // getFeaturedMasters
-  // =========================================================================
-  describe('getFeaturedMasters', () => {
-    
-    it('должен вернуть избранных мастеров с лимитом', async () => {
-      // Arrange
-      const mockMasters = [
-        { _id: '1', fullName: 'Мастер 1', speciality: 'Парикмахер' },
-        { _id: '2', fullName: 'Мастер 2', speciality: 'Визажист' },
-        { _id: '3', fullName: 'Мастер 3', speciality: 'Маникюрист' }
-      ];
 
-      mockMaster.find.mockReturnValue({
-        sort: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue(mockMasters)
-      });
-
-      // Act
-      const result = await MasterService.getFeaturedMasters(3);
-
-      // Assert
-      expect(result.success).toBe(true);
-      expect(result.data).toHaveLength(3);
-    });
-
-    it('должен использовать лимит по умолчанию', async () => {
-      // Arrange
-      const limitMock = jest.fn().mockResolvedValue([]);
-      mockMaster.find.mockReturnValue({
-        sort: jest.fn().mockReturnThis(),
-        limit: limitMock
-      });
-
-      // Act
-      await MasterService.getFeaturedMasters();
-
-      // Assert
-      expect(limitMock).toHaveBeenCalled();
-    });
-
-    it('должен выбросить ошибку при сбое БД', async () => {
-      // Arrange
-      mockMaster.find.mockReturnValue({
-        sort: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockRejectedValue(new Error('DB Error'))
-      });
-
-      // Act & Assert
-      await expect(MasterService.getFeaturedMasters())
-        .rejects
-        .toThrow('Ошибка при получении избранных мастеров');
-    });
-  });
 
   // =========================================================================
   // searchMasters

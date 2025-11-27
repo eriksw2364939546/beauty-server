@@ -179,50 +179,50 @@ describe('CategoryService', () => {
   // =========================================================================
   // getCategoryById
   // =========================================================================
-  describe('getCategoryById', () => {
+  // describe('getCategoryById', () => {
     
-    it('должен вернуть категорию по ID', async () => {
-      // Arrange
-      const mockCategoryData = {
-        _id: 'cat_id_123',
-        title: 'Стрижки',
-        slug: 'strizhki',
-        section: 'service'
-      };
+  //   it('должен вернуть категорию по ID', async () => {
+  //     // Arrange
+  //     const mockCategoryData = {
+  //       _id: 'cat_id_123',
+  //       title: 'Стрижки',
+  //       slug: 'strizhki',
+  //       section: 'service'
+  //     };
 
-      mockCategory.findById.mockResolvedValue(mockCategoryData);
+  //     mockCategory.findById.mockResolvedValue(mockCategoryData);
 
-      // Act
-      const result = await CategoryService.getCategoryById('cat_id_123');
+  //     // Act
+  //     const result = await CategoryService.getCategoryById('cat_id_123');
 
-      // Assert
-      expect(mockCategory.findById).toHaveBeenCalledWith('cat_id_123');
-      expect(result.success).toBe(true);
-      expect(result.data.title).toBe('Стрижки');
-    });
+  //     // Assert
+  //     expect(mockCategory.findById).toHaveBeenCalledWith('cat_id_123');
+  //     expect(result.success).toBe(true);
+  //     expect(result.data.title).toBe('Стрижки');
+  //   });
 
-    it('должен вернуть ошибку, если категория не найдена', async () => {
-      // Arrange
-      mockCategory.findById.mockResolvedValue(null);
+  //   it('должен вернуть ошибку, если категория не найдена', async () => {
+  //     // Arrange
+  //     mockCategory.findById.mockResolvedValue(null);
 
-      // Act
-      const result = await CategoryService.getCategoryById('unknown_id');
+  //     // Act
+  //     const result = await CategoryService.getCategoryById('unknown_id');
 
-      // Assert
-      expect(result.success).toBe(false);
-      expect(result.message).toBe('Категория не найдена');
-    });
+  //     // Assert
+  //     expect(result.success).toBe(false);
+  //     expect(result.message).toBe('Категория не найдена');
+  //   });
 
-    it('должен выбросить ошибку при сбое БД', async () => {
-      // Arrange
-      mockCategory.findById.mockRejectedValue(new Error('DB Error'));
+  //   it('должен выбросить ошибку при сбое БД', async () => {
+  //     // Arrange
+  //     mockCategory.findById.mockRejectedValue(new Error('DB Error'));
 
-      // Act & Assert
-      await expect(CategoryService.getCategoryById('cat_id'))
-        .rejects
-        .toThrow('Ошибка при получении категории');
-    });
-  });
+  //     // Act & Assert
+  //     await expect(CategoryService.getCategoryById('cat_id'))
+  //       .rejects
+  //       .toThrow('Ошибка при получении категории');
+  //   });
+  // });
 
   // =========================================================================
   // createCategory

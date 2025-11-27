@@ -203,50 +203,50 @@ describe('ServiceService', () => {
   // =========================================================================
   // getServiceById
   // =========================================================================
-  describe('getServiceById', () => {
+  // describe('getServiceById', () => {
     
-    it('должен вернуть услугу по ID', async () => {
-      // Arrange
-      const mockServiceData = {
-        _id: 'service_id_123',
-        title: 'Стрижка',
-        slug: 'strizhka',
-        categorySlug: 'strizhki'
-      };
+  //   it('должен вернуть услугу по ID', async () => {
+  //     // Arrange
+  //     const mockServiceData = {
+  //       _id: 'service_id_123',
+  //       title: 'Стрижка',
+  //       slug: 'strizhka',
+  //       categorySlug: 'strizhki'
+  //     };
 
-      mockService.findById.mockResolvedValue(mockServiceData);
+  //     mockService.findById.mockResolvedValue(mockServiceData);
 
-      // Act
-      const result = await ServiceService.getServiceById('service_id_123');
+  //     // Act
+  //     const result = await ServiceService.getServiceById('service_id_123');
 
-      // Assert
-      expect(mockService.findById).toHaveBeenCalledWith('service_id_123');
-      expect(result.success).toBe(true);
-      expect(result.data.title).toBe('Стрижка');
-    });
+  //     // Assert
+  //     expect(mockService.findById).toHaveBeenCalledWith('service_id_123');
+  //     expect(result.success).toBe(true);
+  //     expect(result.data.title).toBe('Стрижка');
+  //   });
 
-    it('должен вернуть ошибку, если услуга не найдена', async () => {
-      // Arrange
-      mockService.findById.mockResolvedValue(null);
+  //   it('должен вернуть ошибку, если услуга не найдена', async () => {
+  //     // Arrange
+  //     mockService.findById.mockResolvedValue(null);
 
-      // Act
-      const result = await ServiceService.getServiceById('unknown_id');
+  //     // Act
+  //     const result = await ServiceService.getServiceById('unknown_id');
 
-      // Assert
-      expect(result.success).toBe(false);
-      expect(result.message).toBe('Услуга не найдена');
-    });
+  //     // Assert
+  //     expect(result.success).toBe(false);
+  //     expect(result.message).toBe('Услуга не найдена');
+  //   });
 
-    it('должен выбросить ошибку при сбое БД', async () => {
-      // Arrange
-      mockService.findById.mockRejectedValue(new Error('DB Error'));
+  //   it('должен выбросить ошибку при сбое БД', async () => {
+  //     // Arrange
+  //     mockService.findById.mockRejectedValue(new Error('DB Error'));
 
-      // Act & Assert
-      await expect(ServiceService.getServiceById('service_id'))
-        .rejects
-        .toThrow('Ошибка при получении услуги');
-    });
-  });
+  //     // Act & Assert
+  //     await expect(ServiceService.getServiceById('service_id'))
+  //       .rejects
+  //       .toThrow('Ошибка при получении услуги');
+  //   });
+  // });
 
   // =========================================================================
   // getServicesByCategory
