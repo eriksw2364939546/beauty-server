@@ -2,7 +2,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-
+import AuthService from './services/AuthService.js';
 // Загружаем переменные окружения как можно раньше
 dotenv.config();
 
@@ -275,6 +275,10 @@ const startServer = async () => {
     // Фаза 4: Подключение к базе данных
     logger.system('Connecting to database...');
     await database.connect();
+
+    // Фаза 4.5: Создание дефолтного админа  ← ДОБАВИТЬ ЭТО!
+    
+    await AuthService.createDefaultAdmin();
     
     // Фаза 5: Создание приложения
     logger.system('Creating Express application...');

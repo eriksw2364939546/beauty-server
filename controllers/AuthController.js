@@ -1,23 +1,13 @@
 import AuthService from '../services/AuthService.js';
-import { validateLogin, validateChangeEmail } from '../validations/auth.validation.js';
 
 class AuthController {
 
   // Логин администратора
   async login(req, res) {
     try {
-      // Валидация входных данных
-      const { error, value } = validateLogin(req.body);
-      
-      if (error) {
-        return res.status(400).json({
-          ok: false,
-          error: 'validation_error',
-          message: error.details[0].message
-        });
-      }
-
-      const { email, password } = value;
+      // Валидация уже выполнена в middleware (validationMiddleware.validateBody)
+      // req.body уже провалидирован и очищен
+      const { email, password } = req.body;
 
       // Авторизация через сервис
       const result = await AuthService.login(email, password);
@@ -42,6 +32,7 @@ class AuthController {
         ok: true,
         data: {
           user: result.user,
+          token: result.token, // Также возвращаем токен в ответе для Postman
           message: 'Успешная авторизация'
         }
       });
@@ -99,7 +90,9 @@ class AuthController {
 
       return res.status(200).json({
         ok: true,
-        data: result.user
+        data: {
+          user: result.user
+        }
       });
 
     } catch (error) {
@@ -112,30 +105,19 @@ class AuthController {
     }
   }
 
-  // Обновление профиля администратора
+  // Обновление профиля (смена email)
   async updateProfile(req, res) {
     try {
-      // Валидация входных данных
-      const { error, value } = validateChangeEmail(req.body);
-      
-      if (error) {
-        return res.status(400).json({
-          ok: false,
-          error: 'validation_error',
-          message: error.details[0].message
-        });
-      }
-
+      // Валидация уже выполнена в middleware
       const userId = req.user.id;
+      const { newEmail, password } = req.body;
 
-      // Обновление профиля через сервис
-      const result = await AuthService.updateProfile(userId, value);
+      const result = await AuthService.updateProfile(userId, { newEmail, password });
 
       if (!result.success) {
-        const statusCode = result.message.includes('не найден') ? 404 : 400;
-        return res.status(statusCode).json({
+        return res.status(400).json({
           ok: false,
-          error: result.message.includes('не найден') ? 'user_not_found' : 'update_error',
+          error: 'update_failed',
           message: result.message
         });
       }
@@ -144,7 +126,7 @@ class AuthController {
         ok: true,
         data: {
           user: result.user,
-          message: result.message
+          message: 'Профиль успешно обновлён'
         }
       });
 
@@ -158,13 +140,14 @@ class AuthController {
     }
   }
 
-  // Проверка токена (middleware endpoint)
+  // Проверка валидности токена
   async verifyToken(req, res) {
     try {
-      // Если middleware auth прошел успешно, значит токен валидный
+      // Если дошли сюда — токен валиден (проверен в authMiddleware)
       return res.status(200).json({
         ok: true,
         data: {
+          valid: true,
           user: req.user,
           message: 'Токен действителен'
         }
@@ -180,16 +163,24 @@ class AuthController {
     }
   }
 
-  // Инициализация - создание дефолтного админа
+  // Инициализация (создание дефолтного администратора)
   async initializeAdmin(req, res) {
     try {
-      // Создание дефолтного администратора
       const result = await AuthService.createDefaultAdmin();
 
-      return res.status(200).json({
+      if (!result.success) {
+        return res.status(400).json({
+          ok: false,
+          error: 'init_failed',
+          message: result.message
+        });
+      }
+
+      return res.status(201).json({
         ok: true,
         data: {
-          message: result.message
+          message: result.message,
+          created: result.created
         }
       });
 
@@ -198,11 +189,10 @@ class AuthController {
       return res.status(500).json({
         ok: false,
         error: 'internal_server_error',
-        message: 'Ошибка при инициализации администратора'
+        message: 'Внутренняя ошибка сервера'
       });
     }
   }
-
 }
 
 export default new AuthController();

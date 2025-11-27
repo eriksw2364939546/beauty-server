@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.model.js';
+import { verifyToken } from '../utils/jwt.js';
 
 class AuthMiddleware {
   // Проверка JWT токена из httpOnly cookie
@@ -16,11 +17,20 @@ class AuthMiddleware {
         });
       }
 
-      // Проверяем токен
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      // Проверяем токен с помощью вашей утилиты
+      const decoded = verifyToken(token);
 
-      // Находим пользователя
-      const user = await User.findById(decoded.userId);
+      // Ищем пользователя - поддерживаем оба варианта (userId и id)
+      const userId = decoded.userId || decoded.id;
+      if (!userId) {
+        return res.status(401).json({
+          ok: false,
+          error: 'unauthorized',
+          message: 'Неверный формат токена'
+        });
+      }
+
+      const user = await User.findById(userId);
 
       if (!user) {
         return res.status(401).json({
@@ -40,19 +50,16 @@ class AuthMiddleware {
       }
 
       // Добавляем пользователя в req для использования в контроллерах
-      req.user = user;
+      req.user = {
+        id: user._id,
+        email: decoded.email,
+        role: user.role
+      };
+
       next();
 
     } catch (error) {
-      if (error.name === 'JsonWebTokenError') {
-        return res.status(401).json({
-          ok: false,
-          error: 'unauthorized',
-          message: 'Неверный токен'
-        });
-      }
-
-      if (error.name === 'TokenExpiredError') {
+      if (error.message === 'Токен истек') {
         return res.status(401).json({
           ok: false,
           error: 'token_expired',
@@ -60,6 +67,15 @@ class AuthMiddleware {
         });
       }
 
+      if (error.message === 'Неверный токен') {
+        return res.status(401).json({
+          ok: false,
+          error: 'unauthorized',
+          message: 'Неверный токен'
+        });
+      }
+
+      console.error('❌ Ошибка в AuthMiddleware.verifyToken:', error);
       return res.status(500).json({
         ok: false,
         error: 'server_error',
@@ -74,11 +90,18 @@ class AuthMiddleware {
       const token = req.cookies?.admin_token;
 
       if (token) {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.userId);
-        
-        if (user && user.role === 'admin') {
-          req.user = user;
+        const decoded = verifyToken(token);
+        const userId = decoded.userId || decoded.id;
+
+        if (userId) {
+          const user = await User.findById(userId);
+          if (user && user.role === 'admin') {
+            req.user = {
+              id: user._id,
+              email: decoded.email,
+              role: user.role
+            };
+          }
         }
       }
 
@@ -122,7 +145,7 @@ class AuthMiddleware {
         });
       }
 
-      jwt.verify(token, process.env.JWT_SECRET);
+      verifyToken(token);
       next();
 
     } catch (error) {
