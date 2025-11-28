@@ -12,18 +12,8 @@ const masterSchema = new mongoose.Schema({
     trim: true
   },
   image: {
-    large: {
-      type: String,
-      required: true
-    },
-    medium: {
-      type: String,
-      required: true
-    },
-    thumb: {
-      type: String,
-      required: true
-    }
+    type: String,
+    required: true
   }
 }, {
   timestamps: true,

@@ -1,28 +1,32 @@
 import ProductService from '../services/ProductService.js';
-import { validateProduct, validateProductUpdate } from '../validations/product.validation.js';
 
 class ProductController {
   // GET /api/products - получить все товары
   async getAll(req, res, next) {
     try {
-      const { search, category, page, limit } = req.query;
-      
-      const result = await ProductService.getAll({
-        search,
+      const { category, search, minPrice, maxPrice, page, limit } = req.query;
+
+      const result = await ProductService.getAllProducts({
         category,
+        search,
+        minPrice: parseFloat(minPrice) || undefined,
+        maxPrice: parseFloat(maxPrice) || undefined,
         page: parseInt(page) || 1,
         limit: parseInt(limit) || 12
       });
 
+      if (!result.success) {
+        return res.status(400).json({
+          ok: false,
+          error: 'fetch_error',
+          message: result.message
+        });
+      }
+
       res.json({
         ok: true,
-        data: result.products,
-        meta: {
-          page: result.page,
-          total: result.total,
-          limit: result.limit,
-          totalPages: result.totalPages
-        }
+        data: result.data,
+        meta: result.meta
       });
     } catch (error) {
       next(error);
@@ -33,12 +37,20 @@ class ProductController {
   async getBySlug(req, res, next) {
     try {
       const { slug } = req.params;
-      
-      const product = await ProductService.getBySlug(slug);
+
+      const result = await ProductService.getProductBySlug(slug);
+
+      if (!result.success) {
+        return res.status(404).json({
+          ok: false,
+          error: 'not_found',
+          message: result.message
+        });
+      }
 
       res.json({
         ok: true,
-        data: product
+        data: result.data
       });
     } catch (error) {
       next(error);
@@ -49,12 +61,20 @@ class ProductController {
   async getById(req, res, next) {
     try {
       const { id } = req.params;
-      
-      const product = await ProductService.getById(id);
+
+      const result = await ProductService.getProductById(id);
+
+      if (!result.success) {
+        return res.status(404).json({
+          ok: false,
+          error: 'not_found',
+          message: result.message
+        });
+      }
 
       res.json({
         ok: true,
-        data: product
+        data: result.data
       });
     } catch (error) {
       next(error);
@@ -65,12 +85,101 @@ class ProductController {
   async getByCode(req, res, next) {
     try {
       const { code } = req.params;
-      
-      const product = await ProductService.getByCode(code);
+
+      const result = await ProductService.getProductByCode(code);
+
+      if (!result.success) {
+        return res.status(404).json({
+          ok: false,
+          error: 'not_found',
+          message: result.message
+        });
+      }
 
       res.json({
         ok: true,
-        data: product
+        data: result.data
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/products/by-category/:categorySlug - товары по категории
+  async getByCategory(req, res, next) {
+    try {
+      const { categorySlug } = req.params;
+      const { page, limit } = req.query;
+
+      const result = await ProductService.getProductsByCategory(categorySlug, {
+        page: parseInt(page) || 1,
+        limit: parseInt(limit) || 12
+      });
+
+      if (!result.success) {
+        return res.status(404).json({
+          ok: false,
+          error: 'not_found',
+          message: result.message
+        });
+      }
+
+      res.json({
+        ok: true,
+        data: result.data,
+        meta: result.meta
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/products/featured - рекомендуемые товары
+  async getFeatured(req, res, next) {
+    try {
+      const { limit } = req.query;
+
+      const result = await ProductService.getFeaturedProducts(parseInt(limit) || 8);
+
+      if (!result.success) {
+        return res.status(400).json({
+          ok: false,
+          error: 'fetch_error',
+          message: result.message
+        });
+      }
+
+      res.json({
+        ok: true,
+        data: result.data
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/products/search - поиск товаров
+  async search(req, res, next) {
+    try {
+      const { query, page, limit } = req.query;
+
+      const result = await ProductService.searchProducts(query, {
+        page: parseInt(page) || 1,
+        limit: parseInt(limit) || 12
+      });
+
+      if (!result.success) {
+        return res.status(400).json({
+          ok: false,
+          error: 'search_error',
+          message: result.message
+        });
+      }
+
+      res.json({
+        ok: true,
+        data: result.data,
+        meta: result.meta
       });
     } catch (error) {
       next(error);
@@ -80,19 +189,8 @@ class ProductController {
   // POST /api/admin/products - создать товар
   async create(req, res, next) {
     try {
-      // Валидация входных данных
-      const { error, value } = validateProduct(req.body);
-      
-      if (error) {
-        return res.status(400).json({
-          ok: false,
-          error: 'validation_error',
-          details: error.details
-        });
-      }
-
-      // Проверяем наличие загруженного файла
-      if (!req.file) {
+      // Проверяем наличие обработанного изображения
+      if (!req.processedImage) {
         return res.status(400).json({
           ok: false,
           error: 'validation_error',
@@ -100,11 +198,20 @@ class ProductController {
         });
       }
 
-      const product = await ProductService.create(value, req.file);
+      const result = await ProductService.createProduct(req.body, req.processedImage);
+
+      if (!result.success) {
+        return res.status(400).json({
+          ok: false,
+          error: 'create_error',
+          message: result.message
+        });
+      }
 
       res.status(201).json({
         ok: true,
-        data: product
+        data: result.data,
+        message: result.message
       });
     } catch (error) {
       next(error);
@@ -116,22 +223,20 @@ class ProductController {
     try {
       const { id } = req.params;
 
-      // Валидация входных данных
-      const { error, value } = validateProductUpdate(req.body);
-      
-      if (error) {
+      const result = await ProductService.updateProduct(id, req.body, req.processedImage);
+
+      if (!result.success) {
         return res.status(400).json({
           ok: false,
-          error: 'validation_error',
-          details: error.details
+          error: 'update_error',
+          message: result.message
         });
       }
 
-      const product = await ProductService.update(id, value, req.file);
-
       res.json({
         ok: true,
-        data: product
+        data: result.data,
+        message: result.message
       });
     } catch (error) {
       next(error);
@@ -143,88 +248,19 @@ class ProductController {
     try {
       const { id } = req.params;
 
-      await ProductService.delete(id);
+      const result = await ProductService.deleteProduct(id);
 
-      res.json({
-        ok: true,
-        message: 'Товар удален'
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  // GET /api/products/by-category/:categorySlug - получить товары по категории
-  async getByCategory(req, res, next) {
-    try {
-      const { categorySlug } = req.params;
-      const { page, limit } = req.query;
-
-      const result = await ProductService.getByCategory(categorySlug, {
-        page: parseInt(page) || 1,
-        limit: parseInt(limit) || 12
-      });
-
-      res.json({
-        ok: true,
-        data: result.products,
-        meta: {
-          page: result.page,
-          total: result.total,
-          limit: result.limit,
-          totalPages: result.totalPages
-        }
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  // GET /api/products/search - поиск товаров
-  async search(req, res, next) {
-    try {
-      const { query, category, page, limit } = req.query;
-
-      if (!query || query.length < 2) {
+      if (!result.success) {
         return res.status(400).json({
           ok: false,
-          error: 'validation_error',
-          message: 'Поисковый запрос должен содержать минимум 2 символа'
+          error: 'delete_error',
+          message: result.message
         });
       }
 
-      const result = await ProductService.search({
-        query,
-        category,
-        page: parseInt(page) || 1,
-        limit: parseInt(limit) || 12
-      });
-
       res.json({
         ok: true,
-        data: result.products,
-        meta: {
-          page: result.page,
-          total: result.total,
-          limit: result.limit,
-          totalPages: result.totalPages
-        }
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  // GET /api/products/featured - получить рекомендуемые товары
-  async getFeatured(req, res, next) {
-    try {
-      const { limit } = req.query;
-
-      const products = await ProductService.getFeatured(parseInt(limit) || 8);
-
-      res.json({
-        ok: true,
-        data: products
+        message: result.message
       });
     } catch (error) {
       next(error);

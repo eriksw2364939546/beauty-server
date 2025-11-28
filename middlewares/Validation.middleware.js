@@ -9,7 +9,7 @@ class ValidationMiddleware {
       try {
         // Выбираем источник данных для валидации
         let dataToValidate;
-        
+
         switch (source) {
           case 'body':
             dataToValidate = req.body;
@@ -47,19 +47,26 @@ class ValidationMiddleware {
           });
         }
 
-        // Заменяем оригинальные данные на валидированные
+        // Обновляем данные валидированными значениями
+        // Для query и params нельзя переназначить объект целиком,
+        // поэтому очищаем и заполняем заново
         switch (source) {
           case 'body':
             req.body = value;
             break;
           case 'params':
-            req.params = value;
+            // Очищаем и заполняем params
+            Object.keys(req.params).forEach(key => delete req.params[key]);
+            Object.assign(req.params, value);
             break;
           case 'query':
-            req.query = value;
+            // Очищаем и заполняем query
+            Object.keys(req.query).forEach(key => delete req.query[key]);
+            Object.assign(req.query, value);
             break;
           case 'headers':
-            req.headers = value;
+            // Headers обычно не нужно переназначать
+            Object.assign(req.headers, value);
             break;
         }
 
@@ -107,7 +114,7 @@ class ValidationMiddleware {
             allowUnknown: false,
             stripUnknown: true
           });
-          
+
           if (error) {
             errors.push(...error.details.map(detail => ({
               source: 'body',
@@ -126,7 +133,7 @@ class ValidationMiddleware {
             allowUnknown: false,
             stripUnknown: true
           });
-          
+
           if (error) {
             errors.push(...error.details.map(detail => ({
               source: 'params',
@@ -135,7 +142,8 @@ class ValidationMiddleware {
               value: detail.context?.value
             })));
           } else {
-            req.params = value;
+            Object.keys(req.params).forEach(key => delete req.params[key]);
+            Object.assign(req.params, value);
           }
         }
 
@@ -145,7 +153,7 @@ class ValidationMiddleware {
             allowUnknown: false,
             stripUnknown: true
           });
-          
+
           if (error) {
             errors.push(...error.details.map(detail => ({
               source: 'query',
@@ -154,7 +162,8 @@ class ValidationMiddleware {
               value: detail.context?.value
             })));
           } else {
-            req.query = value;
+            Object.keys(req.query).forEach(key => delete req.query[key]);
+            Object.assign(req.query, value);
           }
         }
 

@@ -1,38 +1,37 @@
 import Master from '../models/Master.model.js';
-import { generateSlug } from '../utils/slug.js';
+import uploadPhotoMiddleware from '../middlewares/UploadPhoto.middleware.js';
 
 class MasterService {
 
   // Получение всех мастеров
   async getAllMasters(filters = {}) {
     try {
-      const { search, limit, page = 1 } = filters;
-      
-      // Строим фильтр
+      const { speciality, search, limit, page = 1 } = filters;
+
       const query = {};
-      
+
+      if (speciality) {
+        query.speciality = { $regex: speciality, $options: 'i' };
+      }
+
       if (search) {
         query.$or = [
           { fullName: { $regex: search, $options: 'i' } },
           { speciality: { $regex: search, $options: 'i' } }
         ];
       }
-      
-      // Настройки пагинации
+
       const skip = (page - 1) * (limit || 0);
-      const options = {
-        sort: { createdAt: -1 }
-      };
-      
+      const options = { sort: { createdAt: -1 } };
+
       if (limit) {
         options.limit = parseInt(limit);
         options.skip = skip;
       }
-      
-      // Выполняем запрос
+
       const masters = await Master.find(query, null, options);
       const total = await Master.countDocuments(query);
-      
+
       return {
         success: true,
         data: masters,
@@ -43,7 +42,7 @@ class MasterService {
           pages: limit ? Math.ceil(total / limit) : 1
         }
       };
-      
+
     } catch (error) {
       console.error('❌ Ошибка при получении мастеров:', error);
       throw new Error('Ошибка при получении мастеров');
@@ -54,60 +53,43 @@ class MasterService {
   async getMasterById(masterId) {
     try {
       const master = await Master.findById(masterId);
-      
+
       if (!master) {
-        return {
-          success: false,
-          message: 'Мастер не найден'
-        };
+        return { success: false, message: 'Мастер не найден' };
       }
-      
-      return {
-        success: true,
-        data: master
-      };
-      
+
+      return { success: true, data: master };
+
     } catch (error) {
       console.error('❌ Ошибка при получении мастера:', error);
       throw new Error('Ошибка при получении мастера');
     }
   }
 
-  // Получение мастера по slug
-  async getMasterBySlug(slug) {
+  // Получение избранных мастеров
+  async getFeaturedMasters(limit = 4) {
     try {
-      const master = await Master.findOne({ slug: slug.toLowerCase() });
-      
-      if (!master) {
-        return {
-          success: false,
-          message: 'Мастер не найден'
-        };
-      }
-      
-      return {
-        success: true,
-        data: master
-      };
-      
+      const masters = await Master.find()
+        .sort({ createdAt: -1 })
+        .limit(limit);
+
+      return { success: true, data: masters };
+
     } catch (error) {
-      console.error('❌ Ошибка при получении мастера по slug:', error);
-      throw new Error('Ошибка при получении мастера');
+      console.error('❌ Ошибка при получении избранных мастеров:', error);
+      throw new Error('Ошибка при получении избранных мастеров');
     }
   }
 
   // Получение мастеров по специальности
   async getMastersBySpeciality(speciality) {
     try {
-      const masters = await Master.find({ 
+      const masters = await Master.find({
         speciality: { $regex: speciality, $options: 'i' }
       }).sort({ createdAt: -1 });
-      
-      return {
-        success: true,
-        data: masters
-      };
-      
+
+      return { success: true, data: masters };
+
     } catch (error) {
       console.error('❌ Ошибка при получении мастеров по специальности:', error);
       throw new Error('Ошибка при получении мастеров по специальности');
@@ -115,112 +97,74 @@ class MasterService {
   }
 
   // Создание нового мастера
-  async createMaster(masterData) {
+  async createMaster(masterData, imagePath) {
     try {
-      const { fullName, speciality, image } = masterData;
-      
-      // Генерируем уникальный slug
-      const slug = await generateSlug(fullName, 'Master');
-      
-      // Создаем мастера
+      const { fullName, speciality } = masterData;
+
       const master = new Master({
         fullName: fullName.trim(),
-        slug: slug.toLowerCase(),
         speciality: speciality.trim(),
-        image: {
-          large: image.large,
-          medium: image.medium,
-          thumb: image.thumb
-        }
+        image: imagePath  // "/uploads/masters/uuid.webp"
       });
-      
+
       await master.save();
-      
+
       return {
         success: true,
         data: master,
-        message: 'Мастер успешно добавлен'
+        message: 'Мастер успешно создан'
       };
-      
+
     } catch (error) {
-      // Обработка ошибки дублирования slug
-      if (error.code === 11000 && error.keyPattern?.slug) {
-        return {
-          success: false,
-          message: 'Мастер с таким именем уже существует'
-        };
-      }
-      
       console.error('❌ Ошибка при создании мастера:', error);
       throw new Error('Ошибка при создании мастера');
     }
   }
 
   // Обновление мастера
-  async updateMaster(masterId, updateData) {
+  async updateMaster(masterId, updateData, newImagePath) {
     try {
-      const { fullName, speciality, image } = updateData;
-      
+      const { fullName, speciality } = updateData;
+
       const master = await Master.findById(masterId);
-      
+
       if (!master) {
-        return {
-          success: false,
-          message: 'Мастер не найден'
-        };
+        return { success: false, message: 'Мастер не найден' };
       }
-      
-      // Подготавливаем данные для обновления
+
       const updateFields = {};
-      
+
       if (fullName && fullName.trim() !== master.fullName) {
         updateFields.fullName = fullName.trim();
-        // Генерируем новый slug если изменился fullName
-        updateFields.slug = (await generateSlug(fullName, 'Master')).toLowerCase();
       }
-      
+
       if (speciality && speciality.trim() !== master.speciality) {
         updateFields.speciality = speciality.trim();
       }
-      
-      if (image) {
-        updateFields.image = {
-          large: image.large || master.image.large,
-          medium: image.medium || master.image.medium,
-          thumb: image.thumb || master.image.thumb
-        };
+
+      // Если загружено новое изображение — удаляем старое
+      if (newImagePath) {
+        await uploadPhotoMiddleware.deleteImage(master.image);
+        updateFields.image = newImagePath;
       }
-      
-      // Если нет изменений
+
       if (Object.keys(updateFields).length === 0) {
-        return {
-          success: true,
-          data: master,
-          message: 'Нет изменений для обновления'
-        };
+        return { success: true, data: master, message: 'Нет изменений для обновления' };
       }
-      
+
       const updatedMaster = await Master.findByIdAndUpdate(
         masterId,
         updateFields,
         { new: true, runValidators: true }
       );
-      
+
       return {
         success: true,
         data: updatedMaster,
-        message: 'Информация о мастере успешно обновлена'
+        message: 'Мастер успешно обновлён'
       };
-      
+
     } catch (error) {
-      // Обработка ошибки дублирования slug
-      if (error.code === 11000 && error.keyPattern?.slug) {
-        return {
-          success: false,
-          message: 'Мастер с таким именем уже существует'
-        };
-      }
-      
       console.error('❌ Ошибка при обновлении мастера:', error);
       throw new Error('Ошибка при обновлении мастера');
     }
@@ -230,114 +174,23 @@ class MasterService {
   async deleteMaster(masterId) {
     try {
       const master = await Master.findById(masterId);
-      
+
       if (!master) {
-        return {
-          success: false,
-          message: 'Мастер не найден'
-        };
+        return { success: false, message: 'Мастер не найден' };
       }
-      
+
+      // Удаляем файл изображения
+      await uploadPhotoMiddleware.deleteImage(master.image);
+
       await Master.findByIdAndDelete(masterId);
-      
-      return {
-        success: true,
-        message: 'Мастер успешно удален',
-        deletedImages: master.image // Возвращаем пути к изображениям для удаления файлов
-      };
-      
+
+      return { success: true, message: 'Мастер успешно удалён' };
+
     } catch (error) {
       console.error('❌ Ошибка при удалении мастера:', error);
       throw new Error('Ошибка при удалении мастера');
     }
   }
-
-  // Поиск мастеров
-  async searchMasters(searchQuery, filters = {}) {
-    try {
-      const { limit = 20, page = 1 } = filters;
-      
-      const query = {
-        $or: [
-          { fullName: { $regex: searchQuery, $options: 'i' } },
-          { speciality: { $regex: searchQuery, $options: 'i' } }
-        ]
-      };
-      
-      const skip = (page - 1) * limit;
-      
-      const masters = await Master.find(query)
-        .sort({ createdAt: -1 })
-        .limit(parseInt(limit))
-        .skip(skip);
-        
-      const total = await Master.countDocuments(query);
-      
-      return {
-        success: true,
-        data: masters,
-        meta: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit),
-          query: searchQuery
-        }
-      };
-      
-    } catch (error) {
-      console.error('❌ Ошибка при поиске мастеров:', error);
-      throw new Error('Ошибка при поиске мастеров');
-    }
-  }
-
-  // Получение уникальных специальностей
-  async getSpecialities() {
-    try {
-      const specialities = await Master.distinct('speciality');
-      
-      return {
-        success: true,
-        data: specialities.sort()
-      };
-      
-    } catch (error) {
-      console.error('❌ Ошибка при получении специальностей:', error);
-      throw new Error('Ошибка при получении специальностей');
-    }
-  }
-
-  // Получение статистики мастеров
-  async getMastersStats() {
-    try {
-      const totalMasters = await Master.countDocuments();
-      
-      const mastersBySpeciality = await Master.aggregate([
-        {
-          $group: {
-            _id: '$speciality',
-            count: { $sum: 1 }
-          }
-        },
-        {
-          $sort: { count: -1 }
-        }
-      ]);
-      
-      return {
-        success: true,
-        data: {
-          total: totalMasters,
-          bySpeciality: mastersBySpeciality
-        }
-      };
-      
-    } catch (error) {
-      console.error('❌ Ошибка при получении статистики мастеров:', error);
-      throw new Error('Ошибка при получении статистики мастеров');
-    }
-  }
-
 }
 
 export default new MasterService();

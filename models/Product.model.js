@@ -9,7 +9,7 @@ const productSchema = new mongoose.Schema({
   slug: {
     type: String,
     required: true,
-    unique: true  // Уже создаёт индекс
+    unique: true
   },
   description: {
     type: String,
@@ -24,7 +24,7 @@ const productSchema = new mongoose.Schema({
   code: {
     type: String,
     required: true,
-    unique: true,  // Уже создаёт индекс
+    unique: true,
     trim: true
   },
   categorySlug: {
@@ -32,25 +32,15 @@ const productSchema = new mongoose.Schema({
     required: true
   },
   image: {
-    large: {
-      type: String,
-      required: true
-    },
-    medium: {
-      type: String,
-      required: true
-    },
-    thumb: {
-      type: String,
-      required: true
-    }
+    type: String,
+    required: true
   }
 }, {
   timestamps: true,
   versionKey: false
 });
 
-// Индексы (только дополнительные, без дублирования unique полей)
+// Индексы
 productSchema.index({ categorySlug: 1 });
 productSchema.index({ title: 'text' });
 productSchema.index({ createdAt: -1 });

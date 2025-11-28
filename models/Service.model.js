@@ -9,8 +9,7 @@ const serviceSchema = new mongoose.Schema({
   slug: {
     type: String,
     required: true,
-    unique: true,  // Уже создаёт индекс
-    lowercase: true
+    unique: true
   },
   description: {
     type: String,
@@ -18,18 +17,8 @@ const serviceSchema = new mongoose.Schema({
     trim: true
   },
   image: {
-    large: {
-      type: String,
-      required: true
-    },
-    medium: {
-      type: String,
-      required: true
-    },
-    thumb: {
-      type: String,
-      required: true
-    }
+    type: String,
+    required: true
   },
   categorySlug: {
     type: String,
@@ -40,7 +29,7 @@ const serviceSchema = new mongoose.Schema({
   versionKey: false
 });
 
-// Индексы (только дополнительные)
+// Индексы
 serviceSchema.index({ categorySlug: 1 });
 serviceSchema.index({ createdAt: -1 });
 

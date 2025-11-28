@@ -2,18 +2,8 @@ import mongoose from 'mongoose';
 
 const workSchema = new mongoose.Schema({
   image: {
-    large: {
-      type: String,
-      required: true
-    },
-    medium: {
-      type: String,
-      required: true
-    },
-    thumb: {
-      type: String,
-      required: true
-    }
+    type: String,
+    required: true
   },
   categorySlug: {
     type: String,

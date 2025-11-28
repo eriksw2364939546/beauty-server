@@ -1,26 +1,30 @@
 import MasterService from '../services/MasterService.js';
-import { validateMaster, validateMasterUpdate } from '../validations/master.validation.js';
 
 class MasterController {
   // GET /api/masters - получить всех мастеров
   async getAll(req, res, next) {
     try {
-      const { page, limit } = req.query;
-      
-      const result = await MasterService.getAll({
+      const { speciality, search, page, limit } = req.query;
+
+      const result = await MasterService.getAllMasters({
+        speciality,
+        search,
         page: parseInt(page) || 1,
-        limit: parseInt(limit) || 10
+        limit: parseInt(limit) || 12
       });
+
+      if (!result.success) {
+        return res.status(400).json({
+          ok: false,
+          error: 'fetch_error',
+          message: result.message
+        });
+      }
 
       res.json({
         ok: true,
-        data: result.masters,
-        meta: {
-          page: result.page,
-          total: result.total,
-          limit: result.limit,
-          totalPages: result.totalPages
-        }
+        data: result.data,
+        meta: result.meta
       });
     } catch (error) {
       next(error);
@@ -31,12 +35,68 @@ class MasterController {
   async getById(req, res, next) {
     try {
       const { id } = req.params;
-      
-      const master = await MasterService.getById(id);
+
+      const result = await MasterService.getMasterById(id);
+
+      if (!result.success) {
+        return res.status(404).json({
+          ok: false,
+          error: 'not_found',
+          message: result.message
+        });
+      }
 
       res.json({
         ok: true,
-        data: master
+        data: result.data
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/masters/featured - избранные мастера
+  async getFeatured(req, res, next) {
+    try {
+      const { limit } = req.query;
+
+      const result = await MasterService.getFeaturedMasters(parseInt(limit) || 4);
+
+      if (!result.success) {
+        return res.status(400).json({
+          ok: false,
+          error: 'fetch_error',
+          message: result.message
+        });
+      }
+
+      res.json({
+        ok: true,
+        data: result.data
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/masters/by-speciality - мастера по специальности
+  async getBySpeciality(req, res, next) {
+    try {
+      const { speciality } = req.query;
+
+      const result = await MasterService.getMastersBySpeciality(speciality);
+
+      if (!result.success) {
+        return res.status(404).json({
+          ok: false,
+          error: 'not_found',
+          message: result.message
+        });
+      }
+
+      res.json({
+        ok: true,
+        data: result.data
       });
     } catch (error) {
       next(error);
@@ -46,19 +106,8 @@ class MasterController {
   // POST /api/admin/masters - создать мастера
   async create(req, res, next) {
     try {
-      // Валидация входных данных
-      const { error, value } = validateMaster(req.body);
-      
-      if (error) {
-        return res.status(400).json({
-          ok: false,
-          error: 'validation_error',
-          details: error.details
-        });
-      }
-
-      // Проверяем наличие загруженного файла
-      if (!req.file) {
+      // Проверяем наличие обработанного изображения
+      if (!req.processedImage) {
         return res.status(400).json({
           ok: false,
           error: 'validation_error',
@@ -66,11 +115,20 @@ class MasterController {
         });
       }
 
-      const master = await MasterService.create(value, req.file);
+      const result = await MasterService.createMaster(req.body, req.processedImage);
+
+      if (!result.success) {
+        return res.status(400).json({
+          ok: false,
+          error: 'create_error',
+          message: result.message
+        });
+      }
 
       res.status(201).json({
         ok: true,
-        data: master
+        data: result.data,
+        message: result.message
       });
     } catch (error) {
       next(error);
@@ -82,22 +140,20 @@ class MasterController {
     try {
       const { id } = req.params;
 
-      // Валидация входных данных
-      const { error, value } = validateMasterUpdate(req.body);
-      
-      if (error) {
+      const result = await MasterService.updateMaster(id, req.body, req.processedImage);
+
+      if (!result.success) {
         return res.status(400).json({
           ok: false,
-          error: 'validation_error',
-          details: error.details
+          error: 'update_error',
+          message: result.message
         });
       }
 
-      const master = await MasterService.update(id, value, req.file);
-
       res.json({
         ok: true,
-        data: master
+        data: result.data,
+        message: result.message
       });
     } catch (error) {
       next(error);
@@ -109,51 +165,19 @@ class MasterController {
     try {
       const { id } = req.params;
 
-      await MasterService.delete(id);
+      const result = await MasterService.deleteMaster(id);
 
-      res.json({
-        ok: true,
-        message: 'Мастер удален'
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  // GET /api/masters/by-speciality - получить мастеров по специальности
-  async getBySpeciality(req, res, next) {
-    try {
-      const { speciality } = req.query;
-
-      if (!speciality) {
+      if (!result.success) {
         return res.status(400).json({
           ok: false,
-          error: 'validation_error',
-          message: 'Параметр speciality обязателен'
+          error: 'delete_error',
+          message: result.message
         });
       }
 
-      const masters = await MasterService.getBySpeciality(speciality);
-
       res.json({
         ok: true,
-        data: masters
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  // GET /api/masters/featured - получить избранных мастеров для главной
-  async getFeatured(req, res, next) {
-    try {
-      const { limit } = req.query;
-
-      const masters = await MasterService.getFeatured(parseInt(limit) || 4);
-
-      res.json({
-        ok: true,
-        data: masters
+        message: result.message
       });
     } catch (error) {
       next(error);

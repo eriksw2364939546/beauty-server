@@ -1,27 +1,30 @@
 import ServiceService from '../services/ServiceService.js';
-import { validateService, validateServiceUpdate } from '../validations/service.validation.js';
 
 class ServiceController {
   // GET /api/services - получить все услуги
   async getAll(req, res, next) {
     try {
-      const { category, page, limit } = req.query;
-      
-      const result = await ServiceService.getAll({
+      const { category, search, page, limit } = req.query;
+
+      const result = await ServiceService.getAllServices({
         category,
+        search,
         page: parseInt(page) || 1,
         limit: parseInt(limit) || 10
       });
 
+      if (!result.success) {
+        return res.status(400).json({
+          ok: false,
+          error: 'fetch_error',
+          message: result.message
+        });
+      }
+
       res.json({
         ok: true,
-        data: result.services,
-        meta: {
-          page: result.page,
-          total: result.total,
-          limit: result.limit,
-          totalPages: result.totalPages
-        }
+        data: result.data,
+        meta: result.meta
       });
     } catch (error) {
       next(error);
@@ -32,12 +35,44 @@ class ServiceController {
   async getBySlug(req, res, next) {
     try {
       const { slug } = req.params;
-      
-      const service = await ServiceService.getBySlug(slug);
+
+      const result = await ServiceService.getServiceBySlug(slug);
+
+      if (!result.success) {
+        return res.status(404).json({
+          ok: false,
+          error: 'not_found',
+          message: result.message
+        });
+      }
 
       res.json({
         ok: true,
-        data: service
+        data: result.data
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/services/by-category/:categorySlug - услуги по категории
+  async getByCategory(req, res, next) {
+    try {
+      const { categorySlug } = req.params;
+
+      const result = await ServiceService.getServicesByCategory(categorySlug);
+
+      if (!result.success) {
+        return res.status(404).json({
+          ok: false,
+          error: 'not_found',
+          message: result.message
+        });
+      }
+
+      res.json({
+        ok: true,
+        data: result.data
       });
     } catch (error) {
       next(error);
@@ -48,12 +83,20 @@ class ServiceController {
   async getById(req, res, next) {
     try {
       const { id } = req.params;
-      
-      const service = await ServiceService.getById(id);
+
+      const result = await ServiceService.getServiceById(id);
+
+      if (!result.success) {
+        return res.status(404).json({
+          ok: false,
+          error: 'not_found',
+          message: result.message
+        });
+      }
 
       res.json({
         ok: true,
-        data: service
+        data: result.data
       });
     } catch (error) {
       next(error);
@@ -63,19 +106,8 @@ class ServiceController {
   // POST /api/admin/services - создать услугу
   async create(req, res, next) {
     try {
-      // Валидация входных данных
-      const { error, value } = validateService(req.body);
-      
-      if (error) {
-        return res.status(400).json({
-          ok: false,
-          error: 'validation_error',
-          details: error.details
-        });
-      }
-
-      // Проверяем наличие загруженного файла
-      if (!req.file) {
+      // Проверяем наличие обработанного изображения
+      if (!req.processedImage) {
         return res.status(400).json({
           ok: false,
           error: 'validation_error',
@@ -83,11 +115,20 @@ class ServiceController {
         });
       }
 
-      const service = await ServiceService.create(value, req.file);
+      const result = await ServiceService.createService(req.body, req.processedImage);
+
+      if (!result.success) {
+        return res.status(400).json({
+          ok: false,
+          error: 'create_error',
+          message: result.message
+        });
+      }
 
       res.status(201).json({
         ok: true,
-        data: service
+        data: result.data,
+        message: result.message
       });
     } catch (error) {
       next(error);
@@ -99,22 +140,21 @@ class ServiceController {
     try {
       const { id } = req.params;
 
-      // Валидация входных данных
-      const { error, value } = validateServiceUpdate(req.body);
-      
-      if (error) {
+      // processedImage может быть undefined если изображение не загружено
+      const result = await ServiceService.updateService(id, req.body, req.processedImage);
+
+      if (!result.success) {
         return res.status(400).json({
           ok: false,
-          error: 'validation_error',
-          details: error.details
+          error: 'update_error',
+          message: result.message
         });
       }
 
-      const service = await ServiceService.update(id, value, req.file);
-
       res.json({
         ok: true,
-        data: service
+        data: result.data,
+        message: result.message
       });
     } catch (error) {
       next(error);
@@ -126,37 +166,19 @@ class ServiceController {
     try {
       const { id } = req.params;
 
-      await ServiceService.delete(id);
+      const result = await ServiceService.deleteService(id);
+
+      if (!result.success) {
+        return res.status(400).json({
+          ok: false,
+          error: 'delete_error',
+          message: result.message
+        });
+      }
 
       res.json({
         ok: true,
-        message: 'Услуга удалена'
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  // GET /api/services/by-category/:categorySlug - получить услуги по категории
-  async getByCategory(req, res, next) {
-    try {
-      const { categorySlug } = req.params;
-      const { page, limit } = req.query;
-
-      const result = await ServiceService.getByCategory(categorySlug, {
-        page: parseInt(page) || 1,
-        limit: parseInt(limit) || 10
-      });
-
-      res.json({
-        ok: true,
-        data: result.services,
-        meta: {
-          page: result.page,
-          total: result.total,
-          limit: result.limit,
-          totalPages: result.totalPages
-        }
+        message: result.message
       });
     } catch (error) {
       next(error);

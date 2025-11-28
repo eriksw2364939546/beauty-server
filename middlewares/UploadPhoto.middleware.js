@@ -6,21 +6,22 @@ import fs from 'fs';
 
 class UploadPhotoMiddleware {
   constructor() {
-    // Создаем папку uploads если не существует
-    this.uploadDir = path.join(process.cwd(), 'public/uploads');
-    if (!fs.existsSync(this.uploadDir)) {
-      fs.mkdirSync(this.uploadDir, { recursive: true });
+    // Базовая папка uploads
+    this.baseUploadDir = path.join(process.cwd(), 'public/uploads');
+
+    // Создаем базовую папку если не существует
+    if (!fs.existsSync(this.baseUploadDir)) {
+      fs.mkdirSync(this.baseUploadDir, { recursive: true });
     }
 
     // Настройка multer для хранения в памяти
     this.storage = multer.memoryStorage();
-    
+
     // Настройка фильтра файлов
     this.fileFilter = (req, file, cb) => {
-      // Разрешенные MIME типы
       const allowedMimeTypes = [
         'image/jpeg',
-        'image/jpg', 
+        'image/jpg',
         'image/png',
         'image/webp',
         'image/avif',
@@ -40,25 +41,36 @@ class UploadPhotoMiddleware {
       fileFilter: this.fileFilter,
       limits: {
         fileSize: 5 * 1024 * 1024, // 5 MB
-        files: 1 // Только один файл
+        files: 1
       }
     });
   }
 
+  // Получить путь к папке для конкретного типа сущности
+  getUploadDir(entityType) {
+    const uploadDir = path.join(this.baseUploadDir, entityType);
+
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    return uploadDir;
+  }
+
   // Middleware для одного изображения с обработкой
-  single(fieldName = 'image') {
+  single(fieldName = 'image', entityType = 'general') {
     return [
       this.upload.single(fieldName),
-      this.processImage.bind(this)
+      this.createProcessImageMiddleware(entityType, true)
     ];
   }
 
-  // Опциональная загрузка (не обязательная)
-  optional(fieldName = 'image') {
+  // Опциональная загрузка
+  optional(fieldName = 'image', entityType = 'general') {
     return [
       (req, res, next) => {
         const uploadSingle = this.upload.single(fieldName);
-        
+
         uploadSingle(req, res, (error) => {
           if (error && error.code !== 'LIMIT_UNEXPECTED_FILE') {
             return this.handleUploadError(error, res);
@@ -66,118 +78,90 @@ class UploadPhotoMiddleware {
           next();
         });
       },
-      this.processOptionalImage.bind(this)
+      this.createProcessImageMiddleware(entityType, false)
     ];
   }
 
-  // Обработка изображения с Sharp
-  async processImage(req, res, next) {
-    try {
-      if (!req.file) {
-        return res.status(400).json({
+  // Фабрика middleware для обработки изображений
+  createProcessImageMiddleware(entityType, required = true) {
+    return async (req, res, next) => {
+      try {
+        if (!req.file) {
+          if (required) {
+            return res.status(400).json({
+              ok: false,
+              error: 'file_required',
+              message: 'Изображение обязательно'
+            });
+          }
+          return next();
+        }
+
+        const imagePath = await this.processImage(req.file.buffer, entityType);
+        req.processedImage = imagePath;
+
+        next();
+      } catch (error) {
+        console.error('Image processing error:', error);
+        return res.status(500).json({
           ok: false,
-          error: 'file_required',
-          message: 'Изображение обязательно'
+          error: 'image_processing_error',
+          message: 'Ошибка обработки изображения'
         });
       }
-
-      const processedImages = await this.createImageSizes(req.file.buffer);
-      req.processedImages = processedImages;
-      
-      next();
-    } catch (error) {
-      console.error('Image processing error:', error);
-      return res.status(500).json({
-        ok: false,
-        error: 'image_processing_error',
-        message: 'Ошибка обработки изображения'
-      });
-    }
-  }
-
-  // Обработка опционального изображения
-  async processOptionalImage(req, res, next) {
-    try {
-      if (req.file) {
-        const processedImages = await this.createImageSizes(req.file.buffer);
-        req.processedImages = processedImages;
-      }
-      
-      next();
-    } catch (error) {
-      console.error('Image processing error:', error);
-      return res.status(500).json({
-        ok: false,
-        error: 'image_processing_error',
-        message: 'Ошибка обработки изображения'
-      });
-    }
-  }
-
-  // Создание трех размеров изображения
-  async createImageSizes(buffer) {
-    const uuid = uuidv4();
-    
-    // Размеры изображений
-    const sizes = {
-      large: { width: 1200, height: 900, quality: 80, maxSize: 80 * 1024 },
-      medium: { width: 800, height: 600, quality: 80, maxSize: 80 * 1024 },
-      thumb: { width: 400, height: 300, quality: 75, maxSize: 40 * 1024 }
     };
-
-    const processedImages = {};
-
-    for (const [sizeName, config] of Object.entries(sizes)) {
-      const filename = `${config.width}-${uuid}.webp`;
-      const outputPath = path.join(this.uploadDir, filename);
-
-      let quality = config.quality;
-      let imageBuffer;
-
-      // Обрабатываем изображение с начальным качеством
-      do {
-        imageBuffer = await sharp(buffer)
-          .resize(config.width, config.height, { 
-            fit: 'cover', 
-            withoutEnlargement: false 
-          })
-          .webp({ quality })
-          .toBuffer();
-
-        // Если размер превышает лимит, снижаем качество
-        if (imageBuffer.length > config.maxSize) {
-          quality -= 5;
-        }
-      } while (imageBuffer.length > config.maxSize && quality > 20);
-
-      // Сохраняем файл
-      await fs.promises.writeFile(outputPath, imageBuffer);
-
-      processedImages[sizeName] = `/uploads/${filename}`;
-    }
-
-    return processedImages;
   }
 
-  // Удаление файлов изображения
-  async deleteImageFiles(imageObject) {
-    if (!imageObject) return;
+  // Обработка изображения — только один размер
+  async processImage(buffer, entityType = 'general') {
+    const uuid = uuidv4();
+    const uploadDir = this.getUploadDir(entityType);
 
-    const sizes = ['large', 'medium', 'thumb'];
-    
-    for (const size of sizes) {
-      if (imageObject[size]) {
-        try {
-          const filename = path.basename(imageObject[size]);
-          const filePath = path.join(this.uploadDir, filename);
-          
-          if (fs.existsSync(filePath)) {
-            await fs.promises.unlink(filePath);
-          }
-        } catch (error) {
-          console.error(`Ошибка удаления файла ${size}:`, error);
-        }
+    const filename = `${uuid}.webp`;
+    const outputPath = path.join(uploadDir, filename);
+
+    // Настройки изображения
+    const config = { width: 1200, height: 900, quality: 80, maxSize: 100 * 1024 };
+
+    let quality = config.quality;
+    let imageBuffer;
+
+    // Обрабатываем изображение
+    do {
+      imageBuffer = await sharp(buffer)
+        .resize(config.width, config.height, {
+          fit: 'cover',
+          withoutEnlargement: false
+        })
+        .webp({ quality })
+        .toBuffer();
+
+      if (imageBuffer.length > config.maxSize) {
+        quality -= 5;
       }
+    } while (imageBuffer.length > config.maxSize && quality > 20);
+
+    // Сохраняем файл
+    await fs.promises.writeFile(outputPath, imageBuffer);
+
+    // Возвращаем путь: /uploads/services/uuid.webp
+    return `/uploads/${entityType}/${filename}`;
+  }
+
+  // Удаление файла изображения
+  async deleteImage(imagePath) {
+    if (!imagePath) return;
+
+    try {
+      // /uploads/services/uuid.webp -> public/uploads/services/uuid.webp
+      const filePath = path.join(process.cwd(), 'public', imagePath);
+
+      if (fs.existsSync(filePath)) {
+        await fs.promises.unlink(filePath);
+        console.log(`✅ Удален файл: ${filePath}`);
+      }
+    } catch (error) {
+      console.error(`❌ Ошибка удаления файла:`, error);
     }
   }
 
