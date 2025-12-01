@@ -27,8 +27,14 @@ const productSchema = new mongoose.Schema({
     unique: true,
     trim: true
   },
-  categorySlug: {
+  brand: {
     type: String,
+    required: true,
+    trim: true
+  },
+  category: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
     required: true
   },
   image: {
@@ -41,8 +47,9 @@ const productSchema = new mongoose.Schema({
 });
 
 // Индексы
-productSchema.index({ categorySlug: 1 });
-productSchema.index({ title: 'text' });
+productSchema.index({ category: 1 });
+productSchema.index({ brand: 1 });
+productSchema.index({ title: 'text', description: 'text' });
 productSchema.index({ createdAt: -1 });
 
 export default mongoose.model('Product', productSchema);

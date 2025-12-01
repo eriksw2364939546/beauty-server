@@ -7,7 +7,10 @@ import {
   validateService,
   validateServiceUpdate,
   validateServiceParams,
-  validateServiceQuery
+  validateServiceQuery,
+  validateIdParam,
+  validateCategoryIdParam,
+  validateSlugParam
 } from '../validations/service.validation.js';
 
 const router = express.Router();
@@ -22,21 +25,23 @@ router.get('/',
   ServiceController.getAll.bind(ServiceController)
 );
 
-// GET /api/services/by-category/:categorySlug - услуги по категории
+// GET /api/services/by-category/:categoryId - услуги по категории
 // ВАЖНО: этот маршрут должен быть ПЕРЕД /:slug
-router.get('/by-category/:categorySlug',
+router.get('/by-category/:categoryId',
+  validationMiddleware.validateParams(validateCategoryIdParam),
   ServiceController.getByCategory.bind(ServiceController)
 );
 
 // GET /api/services/id/:id - получить услугу по ID (для админки)
 // ВАЖНО: этот маршрут должен быть ПЕРЕД /:slug
 router.get('/id/:id',
-  validationMiddleware.validateParams(validateServiceParams),
+  validationMiddleware.validateParams(validateIdParam),
   ServiceController.getById.bind(ServiceController)
 );
 
 // GET /api/services/:slug - получить услугу по slug
 router.get('/:slug',
+  validationMiddleware.validateParams(validateSlugParam),
   ServiceController.getBySlug.bind(ServiceController)
 );
 
@@ -47,7 +52,7 @@ router.get('/:slug',
 // POST /api/admin/services - создать услугу
 router.post('/',
   authMiddleware.verifyToken.bind(authMiddleware),
-  uploadPhotoMiddleware.single('image', 'services'),  // ← тип сущности 'services'
+  uploadPhotoMiddleware.single('image', 'services'),
   validationMiddleware.validateBody(validateService),
   ServiceController.create.bind(ServiceController)
 );
@@ -55,8 +60,8 @@ router.post('/',
 // PATCH /api/admin/services/:id - обновить услугу
 router.patch('/:id',
   authMiddleware.verifyToken.bind(authMiddleware),
-  validationMiddleware.validateParams(validateServiceParams),
-  uploadPhotoMiddleware.optional('image', 'services'),  // ← опциональное, тип 'services'
+  validationMiddleware.validateParams(validateIdParam),
+  uploadPhotoMiddleware.optional('image', 'services'),
   validationMiddleware.validateBody(validateServiceUpdate),
   ServiceController.update.bind(ServiceController)
 );
@@ -64,7 +69,7 @@ router.patch('/:id',
 // DELETE /api/admin/services/:id - удалить услугу
 router.delete('/:id',
   authMiddleware.verifyToken.bind(authMiddleware),
-  validationMiddleware.validateParams(validateServiceParams),
+  validationMiddleware.validateParams(validateIdParam),
   ServiceController.delete.bind(ServiceController)
 );
 

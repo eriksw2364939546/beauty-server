@@ -5,10 +5,10 @@ import validationMiddleware from '../middlewares/Validation.middleware.js';
 import uploadPhotoMiddleware from '../middlewares/UploadPhoto.middleware.js';
 import {
   validateWork,
-  validateWorkParams,
   validateWorkQuery,
   validateIdParam,
-  validateCategorySlugParam
+  validateCategoryIdParam,
+  validateLatestWorksQuery
 } from '../validations/work.validation.js';
 
 const router = express.Router();
@@ -26,14 +26,14 @@ router.get('/',
 // GET /api/works/latest - получить последние работы (для главной страницы)
 // ВАЖНО: этот маршрут должен быть ПЕРЕД /:id
 router.get('/latest',
-  validationMiddleware.validateQuery(validateWorkQuery),
+  validationMiddleware.validateQuery(validateLatestWorksQuery),
   WorkController.getLatest.bind(WorkController)
 );
 
-// GET /api/works/by-category/:categorySlug - работы по категории
+// GET /api/works/by-category/:categoryId - работы по категории
 // ВАЖНО: этот маршрут должен быть ПЕРЕД /:id
-router.get('/by-category/:categorySlug',
-  validationMiddleware.validateParams(validateCategorySlugParam),
+router.get('/by-category/:categoryId',
+  validationMiddleware.validateParams(validateCategoryIdParam),
   WorkController.getByCategory.bind(WorkController)
 );
 
@@ -50,7 +50,7 @@ router.get('/:id',
 // POST /api/admin/works - создать работу
 router.post('/',
   authMiddleware.verifyToken.bind(authMiddleware),
-  uploadPhotoMiddleware.single('image', 'works'),  // ← тип сущности 'works'
+  uploadPhotoMiddleware.single('image', 'works'),
   validationMiddleware.validateBody(validateWork),
   WorkController.create.bind(WorkController)
 );

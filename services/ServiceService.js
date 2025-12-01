@@ -1,4 +1,5 @@
 import Service from '../models/Service.model.js';
+import Category from '../models/Category.model.js';
 import { generateSlug } from '../utils/slug.js';
 import uploadPhotoMiddleware from '../middlewares/UploadPhoto.middleware.js';
 
@@ -12,7 +13,7 @@ class ServiceService {
       const query = {};
 
       if (category) {
-        query.categorySlug = category.toLowerCase();
+        query.category = category;
       }
 
       if (search) {
@@ -30,7 +31,7 @@ class ServiceService {
         options.skip = skip;
       }
 
-      const services = await Service.find(query, null, options);
+      const services = await Service.find(query, null, options).populate('category', 'title slug section');
       const total = await Service.countDocuments(query);
 
       return {
@@ -53,7 +54,7 @@ class ServiceService {
   // Получение услуги по ID
   async getServiceById(serviceId) {
     try {
-      const service = await Service.findById(serviceId);
+      const service = await Service.findById(serviceId).populate('category', 'title slug section');
 
       if (!service) {
         return { success: false, message: 'Услуга не найдена' };
@@ -70,7 +71,7 @@ class ServiceService {
   // Получение услуги по slug
   async getServiceBySlug(slug) {
     try {
-      const service = await Service.findOne({ slug: slug.toLowerCase() });
+      const service = await Service.findOne({ slug: slug.toLowerCase() }).populate('category', 'title slug section');
 
       if (!service) {
         return { success: false, message: 'Услуга не найдена' };
@@ -85,11 +86,11 @@ class ServiceService {
   }
 
   // Получение услуг по категории
-  async getServicesByCategory(categorySlug) {
+  async getServicesByCategory(categoryId) {
     try {
-      const services = await Service.find({
-        categorySlug: categorySlug.toLowerCase()
-      }).sort({ createdAt: -1 });
+      const services = await Service.find({ category: categoryId })
+        .populate('category', 'title slug section')
+        .sort({ createdAt: -1 });
 
       return { success: true, data: services };
 
@@ -102,7 +103,21 @@ class ServiceService {
   // Создание новой услуги
   async createService(serviceData, imagePath) {
     try {
-      const { title, description, categorySlug } = serviceData;
+      const { title, description, categoryId } = serviceData;
+
+      // Проверяем существование категории с section: 'service'
+      const category = await Category.findById(categoryId);
+
+      if (!category) {
+        return { success: false, message: 'Категория не найдена' };
+      }
+
+      if (category.section !== 'service') {
+        return {
+          success: false,
+          message: `Категория "${category.title}" не относится к секции "service". Текущая секция: "${category.section}"`
+        };
+      }
 
       const slug = await generateSlug(title, 'Service');
 
@@ -110,15 +125,18 @@ class ServiceService {
         title: title.trim(),
         slug: slug.toLowerCase(),
         description: description.trim(),
-        categorySlug: categorySlug.toLowerCase(),
-        image: imagePath  // просто строка: "/uploads/services/uuid.webp"
+        category: categoryId,
+        image: imagePath
       });
 
       await service.save();
 
+      // Возвращаем с populated category
+      const populatedService = await Service.findById(service._id).populate('category', 'title slug section');
+
       return {
         success: true,
-        data: service,
+        data: populatedService,
         message: 'Услуга успешно создана'
       };
 
@@ -135,7 +153,7 @@ class ServiceService {
   // Обновление услуги
   async updateService(serviceId, updateData, newImagePath) {
     try {
-      const { title, description, categorySlug } = updateData;
+      const { title, description, categoryId } = updateData;
 
       const service = await Service.findById(serviceId);
 
@@ -154,8 +172,22 @@ class ServiceService {
         updateFields.description = description.trim();
       }
 
-      if (categorySlug && categorySlug.toLowerCase() !== service.categorySlug) {
-        updateFields.categorySlug = categorySlug.toLowerCase();
+      // Если меняется категория — проверяем что новая категория с section: 'service'
+      if (categoryId && categoryId.toString() !== service.category.toString()) {
+        const newCategory = await Category.findById(categoryId);
+
+        if (!newCategory) {
+          return { success: false, message: 'Категория не найдена' };
+        }
+
+        if (newCategory.section !== 'service') {
+          return {
+            success: false,
+            message: `Категория "${newCategory.title}" не относится к секции "service"`
+          };
+        }
+
+        updateFields.category = categoryId;
       }
 
       // Если загружено новое изображение — удаляем старое
@@ -172,7 +204,7 @@ class ServiceService {
         serviceId,
         updateFields,
         { new: true, runValidators: true }
-      );
+      ).populate('category', 'title slug section');
 
       return {
         success: true,

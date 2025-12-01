@@ -54,12 +54,12 @@ class WorkController {
     }
   }
 
-  // GET /api/works/by-category/:categorySlug - работы по категории
+  // GET /api/works/by-category/:categoryId - работы по категории
   async getByCategory(req, res, next) {
     try {
-      const { categorySlug } = req.params;
+      const { categoryId } = req.params;
 
-      const result = await WorkService.getWorksByCategory(categorySlug);
+      const result = await WorkService.getWorksByCategory(categoryId);
 
       if (!result.success) {
         return res.status(404).json({

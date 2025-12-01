@@ -5,8 +5,9 @@ const workSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  categorySlug: {
-    type: String,
+  category: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
     required: true
   }
 }, {
@@ -15,7 +16,7 @@ const workSchema = new mongoose.Schema({
 });
 
 // Индексы
-workSchema.index({ categorySlug: 1 });
+workSchema.index({ category: 1 });
 workSchema.index({ createdAt: -1 });
 
 export default mongoose.model('Work', workSchema);

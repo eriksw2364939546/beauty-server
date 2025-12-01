@@ -1,4 +1,5 @@
 import Work from '../models/Work.model.js';
+import Category from '../models/Category.model.js';
 import uploadPhotoMiddleware from '../middlewares/UploadPhoto.middleware.js';
 
 class WorkService {
@@ -11,7 +12,7 @@ class WorkService {
       const query = {};
 
       if (category) {
-        query.categorySlug = category.toLowerCase();
+        query.category = category;
       }
 
       const skip = (page - 1) * (limit || 0);
@@ -22,7 +23,7 @@ class WorkService {
         options.skip = skip;
       }
 
-      const works = await Work.find(query, null, options);
+      const works = await Work.find(query, null, options).populate('category', 'title slug section');
       const total = await Work.countDocuments(query);
 
       return {
@@ -45,7 +46,7 @@ class WorkService {
   // Получение работы по ID
   async getWorkById(workId) {
     try {
-      const work = await Work.findById(workId);
+      const work = await Work.findById(workId).populate('category', 'title slug section');
 
       if (!work) {
         return { success: false, message: 'Работа не найдена' };
@@ -60,11 +61,11 @@ class WorkService {
   }
 
   // Получение работ по категории
-  async getWorksByCategory(categorySlug) {
+  async getWorksByCategory(categoryId) {
     try {
-      const works = await Work.find({
-        categorySlug: categorySlug.toLowerCase()
-      }).sort({ createdAt: -1 });
+      const works = await Work.find({ category: categoryId })
+        .populate('category', 'title slug section')
+        .sort({ createdAt: -1 });
 
       return { success: true, data: works };
 
@@ -78,6 +79,7 @@ class WorkService {
   async getLatestWorks(limit = 6) {
     try {
       const works = await Work.find()
+        .populate('category', 'title slug section')
         .sort({ createdAt: -1 })
         .limit(limit);
 
@@ -92,18 +94,35 @@ class WorkService {
   // Создание новой работы
   async createWork(workData, imagePath) {
     try {
-      const { categorySlug } = workData;
+      const { categoryId } = workData;
+
+      // Проверяем существование категории с section: 'work'
+      const category = await Category.findById(categoryId);
+
+      if (!category) {
+        return { success: false, message: 'Категория не найдена' };
+      }
+
+      if (category.section !== 'work') {
+        return {
+          success: false,
+          message: `Категория "${category.title}" не относится к секции "work". Текущая секция: "${category.section}"`
+        };
+      }
 
       const work = new Work({
-        categorySlug: categorySlug.toLowerCase(),
-        image: imagePath  // "/uploads/works/uuid.webp"
+        category: categoryId,
+        image: imagePath
       });
 
       await work.save();
 
+      // Возвращаем с populated category
+      const populatedWork = await Work.findById(work._id).populate('category', 'title slug section');
+
       return {
         success: true,
-        data: work,
+        data: populatedWork,
         message: 'Работа успешно создана'
       };
 

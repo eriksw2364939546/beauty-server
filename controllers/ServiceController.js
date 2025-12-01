@@ -10,7 +10,7 @@ class ServiceController {
         category,
         search,
         page: parseInt(page) || 1,
-        limit: parseInt(limit) || 10
+        limit: parseInt(limit) || 12
       });
 
       if (!result.success) {
@@ -55,12 +55,12 @@ class ServiceController {
     }
   }
 
-  // GET /api/services/by-category/:categorySlug - услуги по категории
-  async getByCategory(req, res, next) {
+  // GET /api/services/id/:id - получить услугу по ID
+  async getById(req, res, next) {
     try {
-      const { categorySlug } = req.params;
+      const { id } = req.params;
 
-      const result = await ServiceService.getServicesByCategory(categorySlug);
+      const result = await ServiceService.getServiceById(id);
 
       if (!result.success) {
         return res.status(404).json({
@@ -79,12 +79,12 @@ class ServiceController {
     }
   }
 
-  // GET /api/services/id/:id - получить услугу по ID
-  async getById(req, res, next) {
+  // GET /api/services/by-category/:categoryId - услуги по категории
+  async getByCategory(req, res, next) {
     try {
-      const { id } = req.params;
+      const { categoryId } = req.params;
 
-      const result = await ServiceService.getServiceById(id);
+      const result = await ServiceService.getServicesByCategory(categoryId);
 
       if (!result.success) {
         return res.status(404).json({
@@ -140,7 +140,6 @@ class ServiceController {
     try {
       const { id } = req.params;
 
-      // processedImage может быть undefined если изображение не загружено
       const result = await ServiceService.updateService(id, req.body, req.processedImage);
 
       if (!result.success) {

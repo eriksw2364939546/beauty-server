@@ -4,13 +4,14 @@ class ProductController {
   // GET /api/products - получить все товары
   async getAll(req, res, next) {
     try {
-      const { category, search, minPrice, maxPrice, page, limit } = req.query;
+      const { category, brand, search, minPrice, maxPrice, page, limit } = req.query;
 
       const result = await ProductService.getAllProducts({
         category,
+        brand,
         search,
-        minPrice: parseFloat(minPrice) || undefined,
-        maxPrice: parseFloat(maxPrice) || undefined,
+        minPrice: minPrice ? parseFloat(minPrice) : undefined,
+        maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
         page: parseInt(page) || 1,
         limit: parseInt(limit) || 12
       });
@@ -105,13 +106,13 @@ class ProductController {
     }
   }
 
-  // GET /api/products/by-category/:categorySlug - товары по категории
+  // GET /api/products/by-category/:categoryId - товары по категории
   async getByCategory(req, res, next) {
     try {
-      const { categorySlug } = req.params;
+      const { categoryId } = req.params;
       const { page, limit } = req.query;
 
-      const result = await ProductService.getProductsByCategory(categorySlug, {
+      const result = await ProductService.getProductsByCategory(categoryId, {
         page: parseInt(page) || 1,
         limit: parseInt(limit) || 12
       });
@@ -180,6 +181,28 @@ class ProductController {
         ok: true,
         data: result.data,
         meta: result.meta
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/products/brands - получить список всех брендов
+  async getBrands(req, res, next) {
+    try {
+      const result = await ProductService.getAllBrands();
+
+      if (!result.success) {
+        return res.status(400).json({
+          ok: false,
+          error: 'fetch_error',
+          message: result.message
+        });
+      }
+
+      res.json({
+        ok: true,
+        data: result.data
       });
     } catch (error) {
       next(error);

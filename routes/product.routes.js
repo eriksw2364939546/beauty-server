@@ -6,11 +6,13 @@ import uploadPhotoMiddleware from '../middlewares/UploadPhoto.middleware.js';
 import {
   validateProduct,
   validateProductUpdate,
-  validateProductParams,
   validateProductQuery,
   validateProductSearch,
+  validateFeaturedProductsQuery,
   validateIdParam,
-  validateCategorySlugParam
+  validateCategoryIdParam,
+  validateCodeParam,
+  validateSlugParam
 } from '../validations/product.validation.js';
 
 const router = express.Router();
@@ -35,20 +37,27 @@ router.get('/search',
 // GET /api/products/featured - рекомендуемые товары (для главной)
 // ВАЖНО: этот маршрут должен быть ПЕРЕД /:slug
 router.get('/featured',
-  validationMiddleware.validateQuery(validateProductQuery),
+  validationMiddleware.validateQuery(validateFeaturedProductsQuery),
   ProductController.getFeatured.bind(ProductController)
 );
 
-// GET /api/products/by-category/:categorySlug - товары по категории
+// GET /api/products/brands - получить список всех брендов
 // ВАЖНО: этот маршрут должен быть ПЕРЕД /:slug
-router.get('/by-category/:categorySlug',
-  validationMiddleware.validateParams(validateCategorySlugParam),
+router.get('/brands',
+  ProductController.getBrands.bind(ProductController)
+);
+
+// GET /api/products/by-category/:categoryId - товары по категории
+// ВАЖНО: этот маршрут должен быть ПЕРЕД /:slug
+router.get('/by-category/:categoryId',
+  validationMiddleware.validateParams(validateCategoryIdParam),
   ProductController.getByCategory.bind(ProductController)
 );
 
 // GET /api/products/code/:code - товар по артикулу
 // ВАЖНО: этот маршрут должен быть ПЕРЕД /:slug
 router.get('/code/:code',
+  validationMiddleware.validateParams(validateCodeParam),
   ProductController.getByCode.bind(ProductController)
 );
 
@@ -61,6 +70,7 @@ router.get('/id/:id',
 
 // GET /api/products/:slug - товар по slug
 router.get('/:slug',
+  validationMiddleware.validateParams(validateSlugParam),
   ProductController.getBySlug.bind(ProductController)
 );
 
@@ -71,7 +81,7 @@ router.get('/:slug',
 // POST /api/admin/products - создать товар
 router.post('/',
   authMiddleware.verifyToken.bind(authMiddleware),
-  uploadPhotoMiddleware.single('image', 'products'),  // ← тип сущности 'products'
+  uploadPhotoMiddleware.single('image', 'products'),
   validationMiddleware.validateBody(validateProduct),
   ProductController.create.bind(ProductController)
 );
@@ -80,7 +90,7 @@ router.post('/',
 router.patch('/:id',
   authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware.validateParams(validateIdParam),
-  uploadPhotoMiddleware.optional('image', 'products'),  // ← опциональное, тип 'products'
+  uploadPhotoMiddleware.optional('image', 'products'),
   validationMiddleware.validateBody(validateProductUpdate),
   ProductController.update.bind(ProductController)
 );

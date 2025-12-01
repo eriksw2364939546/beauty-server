@@ -9,7 +9,8 @@ const serviceSchema = new mongoose.Schema({
   slug: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    lowercase: true
   },
   description: {
     type: String,
@@ -20,8 +21,9 @@ const serviceSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  categorySlug: {
-    type: String,
+  category: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
     required: true
   }
 }, {
@@ -30,7 +32,7 @@ const serviceSchema = new mongoose.Schema({
 });
 
 // Индексы
-serviceSchema.index({ categorySlug: 1 });
+serviceSchema.index({ category: 1 });
 serviceSchema.index({ createdAt: -1 });
 
 export default mongoose.model('Service', serviceSchema);

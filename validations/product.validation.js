@@ -7,11 +7,11 @@ export const validateProduct = Joi.object({
   title: Joi.string()
     .trim()
     .min(2)
-    .max(300)
+    .max(200)
     .required()
     .messages({
-      'string.min': 'Название товара должно содержать минимум 2 символа',
-      'string.max': 'Название товара не должно превышать 300 символов',
+      'string.min': 'Название должно содержать минимум 2 символа',
+      'string.max': 'Название не должно превышать 200 символов',
       'any.required': 'Название товара обязательно',
       'string.empty': 'Название товара не может быть пустым'
     }),
@@ -19,11 +19,11 @@ export const validateProduct = Joi.object({
   description: Joi.string()
     .trim()
     .min(10)
-    .max(3000)
+    .max(2000)
     .required()
     .messages({
-      'string.min': 'Описание товара должно содержать минимум 10 символов',
-      'string.max': 'Описание товара не должно превышать 3000 символов',
+      'string.min': 'Описание должно содержать минимум 10 символов',
+      'string.max': 'Описание не должно превышать 2000 символов',
       'any.required': 'Описание товара обязательно',
       'string.empty': 'Описание товара не может быть пустым'
     }),
@@ -31,13 +31,11 @@ export const validateProduct = Joi.object({
   price: Joi.number()
     .min(0)
     .max(999999.99)
-    .precision(2)
     .required()
     .messages({
       'number.base': 'Цена должна быть числом',
       'number.min': 'Цена не может быть отрицательной',
       'number.max': 'Цена не должна превышать 999,999.99',
-      'number.precision': 'Цена может иметь максимум 2 знака после запятой',
       'any.required': 'Цена товара обязательна'
     }),
 
@@ -47,33 +45,30 @@ export const validateProduct = Joi.object({
     .pattern(/^[A-Z0-9\-]{2,20}$/)
     .required()
     .messages({
-      'string.pattern.base': 'Артикул должен содержать только заглавные буквы, цифры и дефисы (2-20 символов)',
+      'string.pattern.base': 'Артикул должен содержать только буквы, цифры и дефисы (2-20 символов)',
       'any.required': 'Артикул товара обязателен',
       'string.empty': 'Артикул товара не может быть пустым'
     }),
 
-  categorySlug: Joi.string()
-    .pattern(/^[a-z0-9-]+$/)
-    .min(2)
+  brand: Joi.string()
+    .trim()
+    .min(1)
     .max(100)
     .required()
     .messages({
-      'string.pattern.base': 'Категория должна содержать только строчные буквы, цифры и дефисы',
-      'string.min': 'Slug категории должен содержать минимум 2 символа',
-      'string.max': 'Slug категории не должен превышать 100 символов',
-      'any.required': 'Категория товара обязательна',
-      'string.empty': 'Категория товара не может быть пустой'
+      'string.min': 'Бренд должен содержать минимум 1 символ',
+      'string.max': 'Бренд не должен превышать 100 символов',
+      'any.required': 'Бренд товара обязателен',
+      'string.empty': 'Бренд товара не может быть пустым'
     }),
 
-  slug: Joi.string()
-    .pattern(/^[a-z0-9-]+$/)
-    .min(2)
-    .max(300)
-    .optional()
+  categoryId: Joi.string()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .required()
     .messages({
-      'string.pattern.base': 'Slug может содержать только строчные буквы, цифры и дефисы',
-      'string.min': 'Slug должен содержать минимум 2 символа',
-      'string.max': 'Slug не должен превышать 300 символов'
+      'string.pattern.base': 'Некорректный формат ID категории',
+      'any.required': 'Категория товара обязательна',
+      'string.empty': 'Категория товара не может быть пустой'
     })
   // Примечание: изображение обязательно, но валидируется в middleware uploadPhoto
 });
@@ -85,35 +80,31 @@ export const validateProductUpdate = Joi.object({
   title: Joi.string()
     .trim()
     .min(2)
-    .max(300)
+    .max(200)
     .optional()
     .messages({
-      'string.min': 'Название товара должно содержать минимум 2 символа',
-      'string.max': 'Название товара не должно превышать 300 символов',
-      'string.empty': 'Название товара не может быть пустым'
+      'string.min': 'Название должно содержать минимум 2 символа',
+      'string.max': 'Название не должно превышать 200 символов'
     }),
 
   description: Joi.string()
     .trim()
     .min(10)
-    .max(3000)
+    .max(2000)
     .optional()
     .messages({
-      'string.min': 'Описание товара должно содержать минимум 10 символов',
-      'string.max': 'Описание товара не должно превышать 3000 символов',
-      'string.empty': 'Описание товара не может быть пустым'
+      'string.min': 'Описание должно содержать минимум 10 символов',
+      'string.max': 'Описание не должно превышать 2000 символов'
     }),
 
   price: Joi.number()
     .min(0)
     .max(999999.99)
-    .precision(2)
     .optional()
     .messages({
       'number.base': 'Цена должна быть числом',
       'number.min': 'Цена не может быть отрицательной',
-      'number.max': 'Цена не должна превышать 999,999.99',
-      'number.precision': 'Цена может иметь максимум 2 знака после запятой'
+      'number.max': 'Цена не должна превышать 999,999.99'
     }),
 
   code: Joi.string()
@@ -122,35 +113,25 @@ export const validateProductUpdate = Joi.object({
     .pattern(/^[A-Z0-9\-]{2,20}$/)
     .optional()
     .messages({
-      'string.pattern.base': 'Артикул должен содержать только заглавные буквы, цифры и дефисы (2-20 символов)',
-      'string.empty': 'Артикул товара не может быть пустым'
+      'string.pattern.base': 'Артикул должен содержать только буквы, цифры и дефисы (2-20 символов)'
     }),
 
-  categorySlug: Joi.string()
-    .pattern(/^[a-z0-9-]+$/)
-    .min(2)
+  brand: Joi.string()
+    .trim()
+    .min(1)
     .max(100)
     .optional()
     .messages({
-      'string.pattern.base': 'Категория должна содержать только строчные буквы, цифры и дефисы',
-      'string.min': 'Slug категории должен содержать минимум 2 символа',
-      'string.max': 'Slug категории не должен превышать 100 символов',
-      'string.empty': 'Категория товара не может быть пустой'
+      'string.min': 'Бренд должен содержать минимум 1 символ',
+      'string.max': 'Бренд не должен превышать 100 символов'
     }),
 
-  slug: Joi.string()
-    .pattern(/^[a-z0-9-]+$/)
-    .min(2)
-    .max(300)
+  categoryId: Joi.string()
+    .pattern(/^[0-9a-fA-F]{24}$/)
     .optional()
     .messages({
-      'string.pattern.base': 'Slug может содержать только строчные буквы, цифры и дефисы',
-      'string.min': 'Slug должен содержать минимум 2 символа',
-      'string.max': 'Slug не должен превышать 300 символов'
+      'string.pattern.base': 'Некорректный формат ID категории'
     })
-  // Примечание: изображение опциональное при обновлении
-}).min(1).messages({
-  'object.min': 'Необходимо указать хотя бы одно поле для обновления'
 });
 
 /**
@@ -170,30 +151,9 @@ export const validateProductParams = Joi.object({
     .max(300)
     .optional()
     .messages({
-      'string.pattern.base': 'Некорректный формат slug товара',
+      'string.pattern.base': 'Некорректный формат slug',
       'string.min': 'Slug должен содержать минимум 2 символа',
       'string.max': 'Slug не должен превышать 300 символов'
-    }),
-
-  code: Joi.string()
-    .trim()
-    .uppercase()
-    .pattern(/^[A-Z0-9\-]{2,20}$/)
-    .optional()
-    .messages({
-      'string.pattern.base': 'Некорректный формат артикула',
-      'string.empty': 'Артикул не может быть пустым'
-    }),
-
-  categorySlug: Joi.string()
-    .pattern(/^[a-z0-9-]+$/)
-    .min(2)
-    .max(100)
-    .optional()
-    .messages({
-      'string.pattern.base': 'Некорректный формат slug категории',
-      'string.min': 'Slug категории должен содержать минимум 2 символа',
-      'string.max': 'Slug категории не должен превышать 100 символов'
     })
 });
 
@@ -202,14 +162,20 @@ export const validateProductParams = Joi.object({
  */
 export const validateProductQuery = Joi.object({
   category: Joi.string()
-    .pattern(/^[a-z0-9-]+$/)
-    .min(2)
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .optional()
+    .messages({
+      'string.pattern.base': 'Некорректный формат ID категории'
+    }),
+
+  brand: Joi.string()
+    .trim()
+    .min(1)
     .max(100)
     .optional()
     .messages({
-      'string.pattern.base': 'Категория должна содержать только строчные буквы, цифры и дефисы',
-      'string.min': 'Slug категории должен содержать минимум 2 символа',
-      'string.max': 'Slug категории не должен превышать 100 символов'
+      'string.min': 'Бренд должен содержать минимум 1 символ',
+      'string.max': 'Бренд не должен превышать 100 символов'
     }),
 
   search: Joi.string()
@@ -273,11 +239,11 @@ export const validateProductQuery = Joi.object({
     }),
 
   sort: Joi.string()
-    .valid('title', '-title', 'price', '-price', 'code', '-code', 'createdAt', '-createdAt')
+    .valid('title', '-title', 'price', '-price', 'code', '-code', 'brand', '-brand', 'createdAt', '-createdAt')
     .default('-createdAt')
     .optional()
     .messages({
-      'any.only': 'Сортировка должна быть одной из: title, price, code, createdAt (с - для убывания)'
+      'any.only': 'Сортировка должна быть одной из: title, price, code, brand, createdAt (с - для убывания)'
     })
 });
 
@@ -340,14 +306,10 @@ export const validateFeaturedProductsQuery = Joi.object({
     }),
 
   category: Joi.string()
-    .pattern(/^[a-z0-9-]+$/)
-    .min(2)
-    .max(100)
+    .pattern(/^[0-9a-fA-F]{24}$/)
     .optional()
     .messages({
-      'string.pattern.base': 'Категория должна содержать только строчные буквы, цифры и дефисы',
-      'string.min': 'Slug категории должен содержать минимум 2 символа',
-      'string.max': 'Slug категории не должен превышать 100 символов'
+      'string.pattern.base': 'Некорректный формат ID категории'
     }),
 
   excludeIds: Joi.array()
@@ -412,19 +374,15 @@ export const validateIdParam = Joi.object({
 });
 
 /**
- * Схема валидации categorySlug параметра
+ * Схема валидации categoryId параметра
  */
-export const validateCategorySlugParam = Joi.object({
-  categorySlug: Joi.string()
-    .pattern(/^[a-z0-9-]+$/)
-    .min(2)
-    .max(100)
+export const validateCategoryIdParam = Joi.object({
+  categoryId: Joi.string()
+    .pattern(/^[0-9a-fA-F]{24}$/)
     .required()
     .messages({
-      'string.pattern.base': 'Некорректный формат slug категории',
-      'string.min': 'Slug категории должен содержать минимум 2 символа',
-      'string.max': 'Slug категории не должен превышать 100 символов',
-      'any.required': 'Slug категории обязателен'
+      'string.pattern.base': 'Некорректный формат ID категории',
+      'any.required': 'ID категории обязателен'
     })
 });
 
@@ -439,7 +397,7 @@ export const productValidationSchemas = {
   codeParam: validateCodeParam,
   slugParam: validateSlugParam,
   idParam: validateIdParam,
-  categorySlugParam: validateCategorySlugParam
+  categoryIdParam: validateCategoryIdParam
 };
 
 export default productValidationSchemas;
