@@ -6,7 +6,6 @@ import uploadPhotoMiddleware from '../middlewares/UploadPhoto.middleware.js';
 import {
   validateService,
   validateServiceUpdate,
-  validateServiceParams,
   validateServiceQuery,
   validateIdParam,
   validateCategoryIdParam,
@@ -14,6 +13,10 @@ import {
 } from '../validations/service.validation.js';
 
 const router = express.Router();
+
+// Создаём объекты upload для переиспользования
+const serviceUpload = uploadPhotoMiddleware.single('image', 'services');
+const serviceUploadOptional = uploadPhotoMiddleware.optional('image', 'services');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ПУБЛИЧНЫЕ МАРШРУТЫ (для витрины)
@@ -50,10 +53,12 @@ router.get('/:slug',
 // ═══════════════════════════════════════════════════════════════════════════
 
 // POST /api/admin/services - создать услугу
+// Порядок: auth → parse (multer) → validation → process (sharp) → controller
 router.post('/',
   authMiddleware.verifyToken.bind(authMiddleware),
-  uploadPhotoMiddleware.single('image', 'services'),
-  validationMiddleware.validateBody(validateService),
+  serviceUpload.parse,                              // 1. Парсим form-data (файл в памяти)
+  validationMiddleware.validateBody(validateService), // 2. Валидируем body
+  serviceUpload.process,                            // 3. Обрабатываем и сохраняем изображение
   ServiceController.create.bind(ServiceController)
 );
 
@@ -61,8 +66,9 @@ router.post('/',
 router.patch('/:id',
   authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware.validateParams(validateIdParam),
-  uploadPhotoMiddleware.optional('image', 'services'),
-  validationMiddleware.validateBody(validateServiceUpdate),
+  serviceUploadOptional.parse,                           // 1. Парсим form-data
+  validationMiddleware.validateBody(validateServiceUpdate), // 2. Валидируем body
+  serviceUploadOptional.process,                         // 3. Обрабатываем изображение (если есть)
   ServiceController.update.bind(ServiceController)
 );
 

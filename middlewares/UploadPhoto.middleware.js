@@ -14,7 +14,7 @@ class UploadPhotoMiddleware {
       fs.mkdirSync(this.baseUploadDir, { recursive: true });
     }
 
-    // Настройка multer для хранения в памяти
+    // Настройка multer для хранения в памяти (не на диске!)
     this.storage = multer.memoryStorage();
 
     // Настройка фильтра файлов
@@ -44,6 +44,11 @@ class UploadPhotoMiddleware {
         files: 1
       }
     });
+
+    // Привязываем контекст для методов
+    this.handleUploadError = this.handleUploadError.bind(this);
+    this.processImage = this.processImage.bind(this);
+    this.getUploadDir = this.getUploadDir.bind(this);
   }
 
   // Получить путь к папке для конкретного типа сущности
@@ -57,57 +62,101 @@ class UploadPhotoMiddleware {
     return uploadDir;
   }
 
-  // Middleware для одного изображения с обработкой
+  /**
+   * НОВЫЙ ПОДХОД: Разделяем на 2 этапа
+   * 1. parse - только парсинг form-data (multer читает файл в память)
+   * 2. process - обработка и сохранение изображения на диск
+   * 
+   * Валидация body происходит МЕЖДУ этапами!
+   */
+
+  // Middleware для одного ОБЯЗАТЕЛЬНОГО изображения
   single(fieldName = 'image', entityType = 'general') {
-    return [
-      this.upload.single(fieldName),
-      this.createProcessImageMiddleware(entityType, true)
-    ];
-  }
+    const self = this;
+    const uploadSingle = this.upload.single(fieldName);
 
-  // Опциональная загрузка
-  optional(fieldName = 'image', entityType = 'general') {
-    return [
-      (req, res, next) => {
-        const uploadSingle = this.upload.single(fieldName);
-
+    return {
+      // Этап 1: Парсинг form-data
+      parse: (req, res, next) => {
         uploadSingle(req, res, (error) => {
-          if (error && error.code !== 'LIMIT_UNEXPECTED_FILE') {
-            return this.handleUploadError(error, res);
+          if (error) {
+            return self.handleUploadError(error, res);
           }
+
+          // DEBUG
+          console.log('📦 [UploadPhoto.parse] req.body:', req.body);
+          console.log('📦 [UploadPhoto.parse] req.file:', req.file ? 'есть файл' : 'нет файла');
+
           next();
         });
       },
-      this.createProcessImageMiddleware(entityType, false)
-    ];
-  }
 
-  // Фабрика middleware для обработки изображений
-  createProcessImageMiddleware(entityType, required = true) {
-    return async (req, res, next) => {
-      try {
-        if (!req.file) {
-          if (required) {
+      // Этап 2: Обработка и сохранение (ОБЯЗАТЕЛЬНОЕ изображение)
+      process: async (req, res, next) => {
+        try {
+          if (!req.file) {
             return res.status(400).json({
               ok: false,
               error: 'file_required',
               message: 'Изображение обязательно'
             });
           }
-          return next();
+
+          const imagePath = await self.processImage(req.file.buffer, entityType);
+          req.processedImage = imagePath;
+          next();
+        } catch (error) {
+          console.error('Image processing error:', error);
+          return res.status(500).json({
+            ok: false,
+            error: 'image_processing_error',
+            message: 'Ошибка обработки изображения'
+          });
         }
+      }
+    };
+  }
 
-        const imagePath = await this.processImage(req.file.buffer, entityType);
-        req.processedImage = imagePath;
+  // Middleware для ОПЦИОНАЛЬНОГО изображения
+  optional(fieldName = 'image', entityType = 'general') {
+    const self = this;
+    const uploadSingle = this.upload.single(fieldName);
 
-        next();
-      } catch (error) {
-        console.error('Image processing error:', error);
-        return res.status(500).json({
-          ok: false,
-          error: 'image_processing_error',
-          message: 'Ошибка обработки изображения'
+    return {
+      // Этап 1: Парсинг form-data
+      parse: (req, res, next) => {
+        uploadSingle(req, res, (error) => {
+          if (error && error.code !== 'LIMIT_UNEXPECTED_FILE') {
+            return self.handleUploadError(error, res);
+          }
+
+          // DEBUG
+          console.log('📦 [UploadPhoto.parse optional] req.body:', req.body);
+          console.log('📦 [UploadPhoto.parse optional] req.file:', req.file ? 'есть файл' : 'нет файла');
+
+          next();
         });
+      },
+
+      // Этап 2: Обработка и сохранение (ОПЦИОНАЛЬНОЕ изображение)
+      process: async (req, res, next) => {
+        try {
+          if (!req.file) {
+            // Файл не обязателен — пропускаем
+            return next();
+          }
+
+          const imagePath = await self.processImage(req.file.buffer, entityType);
+          req.processedImage = imagePath;
+          next();
+        } catch (error) {
+          console.error('Image processing error:', error);
+          return res.status(500).json({
+            ok: false,
+            error: 'image_processing_error',
+            message: 'Ошибка обработки изображения'
+          });
+        }
       }
     };
   }

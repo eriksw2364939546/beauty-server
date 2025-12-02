@@ -12,6 +12,10 @@ import {
 
 const router = express.Router();
 
+// Создаём объекты upload для переиспользования
+const masterUpload = uploadPhotoMiddleware.single('image', 'masters');
+const masterUploadOptional = uploadPhotoMiddleware.optional('image', 'masters');
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ПУБЛИЧНЫЕ МАРШРУТЫ (для витрины)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -47,10 +51,12 @@ router.get('/:id',
 // ═══════════════════════════════════════════════════════════════════════════
 
 // POST /api/admin/masters - создать мастера
+// Порядок: auth → parse (multer) → validation → process (sharp) → controller
 router.post('/',
   authMiddleware.verifyToken.bind(authMiddleware),
-  uploadPhotoMiddleware.single('image', 'masters'),  // ← тип сущности 'masters'
-  validationMiddleware.validateBody(validateMaster),
+  masterUpload.parse,                              // 1. Парсим form-data (файл в памяти)
+  validationMiddleware.validateBody(validateMaster), // 2. Валидируем body
+  masterUpload.process,                            // 3. Обрабатываем и сохраняем изображение
   MasterController.create.bind(MasterController)
 );
 
@@ -58,8 +64,9 @@ router.post('/',
 router.patch('/:id',
   authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware.validateParams(validateMasterParams),
-  uploadPhotoMiddleware.optional('image', 'masters'),  // ← опциональное, тип 'masters'
-  validationMiddleware.validateBody(validateMasterUpdate),
+  masterUploadOptional.parse,                           // 1. Парсим form-data
+  validationMiddleware.validateBody(validateMasterUpdate), // 2. Валидируем body
+  masterUploadOptional.process,                         // 3. Обрабатываем изображение (если есть)
   MasterController.update.bind(MasterController)
 );
 

@@ -17,6 +17,10 @@ import {
 
 const router = express.Router();
 
+// Создаём объекты upload для переиспользования
+const productUpload = uploadPhotoMiddleware.single('image', 'products');
+const productUploadOptional = uploadPhotoMiddleware.optional('image', 'products');
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ПУБЛИЧНЫЕ МАРШРУТЫ (для витрины)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -79,10 +83,12 @@ router.get('/:slug',
 // ═══════════════════════════════════════════════════════════════════════════
 
 // POST /api/admin/products - создать товар
+// Порядок: auth → parse (multer) → validation → process (sharp) → controller
 router.post('/',
   authMiddleware.verifyToken.bind(authMiddleware),
-  uploadPhotoMiddleware.single('image', 'products'),
-  validationMiddleware.validateBody(validateProduct),
+  productUpload.parse,                              // 1. Парсим form-data (файл в памяти)
+  validationMiddleware.validateBody(validateProduct), // 2. Валидируем body
+  productUpload.process,                            // 3. Обрабатываем и сохраняем изображение
   ProductController.create.bind(ProductController)
 );
 
@@ -90,8 +96,9 @@ router.post('/',
 router.patch('/:id',
   authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware.validateParams(validateIdParam),
-  uploadPhotoMiddleware.optional('image', 'products'),
-  validationMiddleware.validateBody(validateProductUpdate),
+  productUploadOptional.parse,                           // 1. Парсим form-data
+  validationMiddleware.validateBody(validateProductUpdate), // 2. Валидируем body
+  productUploadOptional.process,                         // 3. Обрабатываем изображение (если есть)
   ProductController.update.bind(ProductController)
 );
 

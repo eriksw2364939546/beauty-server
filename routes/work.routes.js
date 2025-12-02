@@ -13,6 +13,9 @@ import {
 
 const router = express.Router();
 
+// Создаём объект upload для переиспользования
+const workUpload = uploadPhotoMiddleware.single('image', 'works');
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ПУБЛИЧНЫЕ МАРШРУТЫ (для витрины)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -48,10 +51,12 @@ router.get('/:id',
 // ═══════════════════════════════════════════════════════════════════════════
 
 // POST /api/admin/works - создать работу
+// Порядок: auth → parse (multer) → validation → process (sharp) → controller
 router.post('/',
   authMiddleware.verifyToken.bind(authMiddleware),
-  uploadPhotoMiddleware.single('image', 'works'),
-  validationMiddleware.validateBody(validateWork),
+  workUpload.parse,                              // 1. Парсим form-data (файл в памяти)
+  validationMiddleware.validateBody(validateWork), // 2. Валидируем body
+  workUpload.process,                            // 3. Обрабатываем и сохраняем изображение
   WorkController.create.bind(WorkController)
 );
 
