@@ -4,40 +4,28 @@ import Joi from 'joi';
  * Схема валидации для создания работы
  */
 export const validateWork = Joi.object({
-  categoryId: Joi.string()
+  serviceId: Joi.string()
     .pattern(/^[0-9a-fA-F]{24}$/)
     .required()
     .messages({
-      'string.pattern.base': 'Некорректный формат ID категории',
-      'any.required': 'Категория работы обязательна',
-      'string.empty': 'Категория работы не может быть пустой'
+      'string.pattern.base': 'Некорректный формат ID услуги',
+      'any.required': 'Услуга обязательна',
+      'string.empty': 'Услуга не может быть пустой'
     })
   // Примечание: изображение обязательно, но валидируется в middleware uploadPhoto
-});
-
-/**
- * Схема валидации параметров URL для работ
- */
-export const validateWorkParams = Joi.object({
-  id: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
-    .optional()
-    .messages({
-      'string.pattern.base': 'Некорректный формат ID работы'
-    }),
-
-  categoryId: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
-    .optional()
-    .messages({
-      'string.pattern.base': 'Некорректный формат ID категории'
-    })
 });
 
 /**
  * Схема валидации query параметров для фильтрации работ
  */
 export const validateWorkQuery = Joi.object({
+  service: Joi.string()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .optional()
+    .messages({
+      'string.pattern.base': 'Некорректный формат ID услуги'
+    }),
+
   category: Joi.string()
     .pattern(/^[0-9a-fA-F]{24}$/)
     .optional()
@@ -67,14 +55,24 @@ export const validateWorkQuery = Joi.object({
       'number.integer': 'Лимит должен быть целым числом',
       'number.min': 'Лимит должен быть больше 0',
       'number.max': 'Лимит не должен превышать 50'
-    }),
+    })
+});
 
-  sort: Joi.string()
-    .valid('createdAt', '-createdAt')
-    .default('-createdAt')
+/**
+ * Схема валидации query параметров для последних работ
+ */
+export const validateLatestWorksQuery = Joi.object({
+  limit: Joi.number()
+    .integer()
+    .min(1)
+    .max(20)
+    .default(6)
     .optional()
     .messages({
-      'any.only': 'Сортировка должна быть одной из: createdAt (с - для убывания)'
+      'number.base': 'Лимит должен быть числом',
+      'number.integer': 'Лимит должен быть целым числом',
+      'number.min': 'Лимит должен быть больше 0',
+      'number.max': 'Лимит не должен превышать 20'
     })
 });
 
@@ -92,6 +90,19 @@ export const validateIdParam = Joi.object({
 });
 
 /**
+ * Схема валидации serviceId параметра
+ */
+export const validateServiceIdParam = Joi.object({
+  serviceId: Joi.string()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .required()
+    .messages({
+      'string.pattern.base': 'Некорректный формат ID услуги',
+      'any.required': 'ID услуги обязателен'
+    })
+});
+
+/**
  * Схема валидации categoryId параметра
  */
 export const validateCategoryIdParam = Joi.object({
@@ -104,79 +115,14 @@ export const validateCategoryIdParam = Joi.object({
     })
 });
 
-/**
- * Схема валидации для получения последних работ
- */
-export const validateLatestWorksQuery = Joi.object({
-  limit: Joi.number()
-    .integer()
-    .min(1)
-    .max(20)
-    .default(6)
-    .optional()
-    .messages({
-      'number.base': 'Лимит должен быть числом',
-      'number.integer': 'Лимит должен быть целым числом',
-      'number.min': 'Лимит должен быть больше 0',
-      'number.max': 'Лимит для последних работ не должен превышать 20'
-    }),
-
-  category: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
-    .optional()
-    .messages({
-      'string.pattern.base': 'Некорректный формат ID категории'
-    })
-});
-
-/**
- * Схема валидации для получения случайных работ
- */
-export const validateRandomWorksQuery = Joi.object({
-  limit: Joi.number()
-    .integer()
-    .min(1)
-    .max(12)
-    .default(4)
-    .optional()
-    .messages({
-      'number.base': 'Лимит должен быть числом',
-      'number.integer': 'Лимит должен быть целым числом',
-      'number.min': 'Лимит должен быть больше 0',
-      'number.max': 'Лимит для случайных работ не должен превышать 12'
-    }),
-
-  category: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
-    .optional()
-    .messages({
-      'string.pattern.base': 'Некорректный формат ID категории'
-    }),
-
-  excludeIds: Joi.array()
-    .items(
-      Joi.string()
-        .pattern(/^[0-9a-fA-F]{24}$/)
-        .messages({
-          'string.pattern.base': 'Некорректный формат ID работы'
-        })
-    )
-    .max(10)
-    .optional()
-    .messages({
-      'array.max': 'Можно исключить максимум 10 работ'
-    })
-});
-
 // Экспорт всех схем как объект для удобства
 export const workValidationSchemas = {
   create: validateWork,
-  params: validateWorkParams,
   query: validateWorkQuery,
-  idParam: validateIdParam,
-  categoryIdParam: validateCategoryIdParam,
   latestQuery: validateLatestWorksQuery,
-  randomQuery: validateRandomWorksQuery
+  idParam: validateIdParam,
+  serviceIdParam: validateServiceIdParam,
+  categoryIdParam: validateCategoryIdParam
 };
 
 export default workValidationSchemas;

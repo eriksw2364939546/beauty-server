@@ -16,9 +16,9 @@ const priceSchema = new mongoose.Schema({
         required: true,
         min: 0
     },
-    category: {
+    service: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Category',
+        ref: 'Service',
         required: true
     },
     sortOrder: {
@@ -31,7 +31,7 @@ const priceSchema = new mongoose.Schema({
 });
 
 // Индексы
-priceSchema.index({ category: 1, sortOrder: 1 });
+priceSchema.index({ service: 1, sortOrder: 1 });
 priceSchema.index({ createdAt: -1 });
 
 export default mongoose.model('Price', priceSchema);

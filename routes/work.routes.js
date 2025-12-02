@@ -3,10 +3,12 @@ import WorkController from '../controllers/WorkController.js';
 import authMiddleware from '../middlewares/Auth.middleware.js';
 import validationMiddleware from '../middlewares/Validation.middleware.js';
 import uploadPhotoMiddleware from '../middlewares/UploadPhoto.middleware.js';
+import businessValidation from '../middlewares/BusinessValidation.middleware.js';
 import {
   validateWork,
   validateWorkQuery,
   validateIdParam,
+  validateServiceIdParam,
   validateCategoryIdParam,
   validateLatestWorksQuery
 } from '../validations/work.validation.js';
@@ -33,6 +35,13 @@ router.get('/latest',
   WorkController.getLatest.bind(WorkController)
 );
 
+// GET /api/works/by-service/:serviceId - работы по услуге
+// ВАЖНО: этот маршрут должен быть ПЕРЕД /:id
+router.get('/by-service/:serviceId',
+  validationMiddleware.validateParams(validateServiceIdParam),
+  WorkController.getByService.bind(WorkController)
+);
+
 // GET /api/works/by-category/:categoryId - работы по категории
 // ВАЖНО: этот маршрут должен быть ПЕРЕД /:id
 router.get('/by-category/:categoryId',
@@ -51,12 +60,13 @@ router.get('/:id',
 // ═══════════════════════════════════════════════════════════════════════════
 
 // POST /api/admin/works - создать работу
-// Порядок: auth → parse (multer) → validation → process (sharp) → controller
+// Порядок: auth → parse → joi validation → business validation → process → controller
 router.post('/',
   authMiddleware.verifyToken.bind(authMiddleware),
   workUpload.parse,                              // 1. Парсим form-data (файл в памяти)
-  validationMiddleware.validateBody(validateWork), // 2. Валидируем body
-  workUpload.process,                            // 3. Обрабатываем и сохраняем изображение
+  validationMiddleware.validateBody(validateWork), // 2. Joi валидация
+  businessValidation.validateWorkCreate(),       // 3. Бизнес-валидация (существование услуги)
+  workUpload.process,                            // 4. Сохраняем изображение на диск
   WorkController.create.bind(WorkController)
 );
 

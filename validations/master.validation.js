@@ -8,12 +8,12 @@ export const validateMaster = Joi.object({
     .trim()
     .min(2)
     .max(100)
-    .pattern(/^[А-Яа-яЁё\s\-\.]+$/)
+    .pattern(/^[A-Za-zА-Яа-яЁёІіЇїЄєҐґ\s\-\.\']+$/)
     .required()
     .messages({
       'string.min': 'Полное имя должно содержать минимум 2 символа',
       'string.max': 'Полное имя не должно превышать 100 символов',
-      'string.pattern.base': 'Полное имя должно содержать только кириллические буквы, пробелы, дефисы и точки',
+      'string.pattern.base': 'Полное имя должно содержать только буквы, пробелы, дефисы, точки и апострофы',
       'any.required': 'Полное имя мастера обязательно',
       'string.empty': 'Полное имя мастера не может быть пустым'
     }),
@@ -40,13 +40,12 @@ export const validateMasterUpdate = Joi.object({
     .trim()
     .min(2)
     .max(100)
-    .pattern(/^[А-Яа-яЁё\s\-\.]+$/)
+    .pattern(/^[A-Za-zА-Яа-яЁёІіЇїЄєҐґ\s\-\.\']+$/)
     .optional()
     .messages({
       'string.min': 'Полное имя должно содержать минимум 2 символа',
       'string.max': 'Полное имя не должно превышать 100 символов',
-      'string.pattern.base': 'Полное имя должно содержать только кириллические буквы, пробелы, дефисы и точки',
-      'string.empty': 'Полное имя мастера не может быть пустым'
+      'string.pattern.base': 'Полное имя должно содержать только буквы, пробелы, дефисы, точки и апострофы'
     }),
 
   speciality: Joi.string()
@@ -56,16 +55,15 @@ export const validateMasterUpdate = Joi.object({
     .optional()
     .messages({
       'string.min': 'Специальность должна содержать минимум 2 символа',
-      'string.max': 'Специальность не должна превышать 200 символов',
-      'string.empty': 'Специальность мастера не может быть пустой'
+      'string.max': 'Специальность не должна превышать 200 символов'
     })
-  // Примечание: изображение опциональное при обновлении
+  // Примечание: изображение опционально при обновлении
 }).min(1).messages({
   'object.min': 'Необходимо указать хотя бы одно поле для обновления'
 });
 
 /**
- * Схема валидации параметров URL для мастеров
+ * Схема валидации для параметров мастера (ID)
  */
 export const validateMasterParams = Joi.object({
   id: Joi.string()
@@ -81,16 +79,6 @@ export const validateMasterParams = Joi.object({
  * Схема валидации query параметров для фильтрации мастеров
  */
 export const validateMasterQuery = Joi.object({
-  speciality: Joi.string()
-    .trim()
-    .min(2)
-    .max(200)
-    .optional()
-    .messages({
-      'string.min': 'Специальность должна содержать минимум 2 символа',
-      'string.max': 'Специальность не должна превышать 200 символов'
-    }),
-
   page: Joi.number()
     .integer()
     .min(1)
@@ -189,31 +177,7 @@ export const validateFeaturedMastersQuery = Joi.object({
       'number.base': 'Лимит должен быть числом',
       'number.integer': 'Лимит должен быть целым числом',
       'number.min': 'Лимит должен быть больше 0',
-      'number.max': 'Лимит для избранных мастеров не должен превышать 12'
-    }),
-
-  speciality: Joi.string()
-    .trim()
-    .min(2)
-    .max(200)
-    .optional()
-    .messages({
-      'string.min': 'Специальность должна содержать минимум 2 символа',
-      'string.max': 'Специальность не должна превышать 200 символов'
-    }),
-
-  excludeIds: Joi.array()
-    .items(
-      Joi.string()
-        .pattern(/^[0-9a-fA-F]{24}$/)
-        .messages({
-          'string.pattern.base': 'Некорректный формат ID мастера'
-        })
-    )
-    .max(10)
-    .optional()
-    .messages({
-      'array.max': 'Можно исключить максимум 10 мастеров'
+      'number.max': 'Лимит не должен превышать 12'
     })
 });
 
@@ -221,7 +185,7 @@ export const validateFeaturedMastersQuery = Joi.object({
  * Схема валидации для поиска мастеров
  */
 export const validateMasterSearch = Joi.object({
-  query: Joi.string()
+  q: Joi.string()
     .trim()
     .min(2)
     .max(100)
@@ -237,12 +201,7 @@ export const validateMasterSearch = Joi.object({
     .integer()
     .min(1)
     .default(1)
-    .optional()
-    .messages({
-      'number.base': 'Номер страницы должен быть числом',
-      'number.integer': 'Номер страницы должен быть целым числом',
-      'number.min': 'Номер страницы должен быть больше 0'
-    }),
+    .optional(),
 
   limit: Joi.number()
     .integer()
@@ -250,12 +209,6 @@ export const validateMasterSearch = Joi.object({
     .max(50)
     .default(12)
     .optional()
-    .messages({
-      'number.base': 'Лимит должен быть числом',
-      'number.integer': 'Лимит должен быть целым числом',
-      'number.min': 'Лимит должен быть больше 0',
-      'number.max': 'Лимит не должен превышать 50'
-    })
 });
 
 /**
@@ -305,15 +258,15 @@ export const validateSpecialityWithSuggestions = Joi.string()
   .custom((value, helpers) => {
     // Можно добавить логику для предложения исправлений
     const normalized = value.toLowerCase();
-    const suggestions = COMMON_SPECIALITIES.filter(spec => 
-      spec.toLowerCase().includes(normalized) || 
+    const suggestions = COMMON_SPECIALITIES.filter(spec =>
+      spec.toLowerCase().includes(normalized) ||
       normalized.includes(spec.toLowerCase())
     );
-    
+
     if (suggestions.length > 0) {
       return value; // Валидное значение
     }
-    
+
     return value; // Пропускаем любые значения, но можем логировать
   })
   .messages({

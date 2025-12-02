@@ -3,6 +3,7 @@ import ProductController from '../controllers/ProductController.js';
 import authMiddleware from '../middlewares/Auth.middleware.js';
 import validationMiddleware from '../middlewares/Validation.middleware.js';
 import uploadPhotoMiddleware from '../middlewares/UploadPhoto.middleware.js';
+import businessValidation from '../middlewares/BusinessValidation.middleware.js';
 import {
   validateProduct,
   validateProductUpdate,
@@ -83,12 +84,13 @@ router.get('/:slug',
 // ═══════════════════════════════════════════════════════════════════════════
 
 // POST /api/admin/products - создать товар
-// Порядок: auth → parse (multer) → validation → process (sharp) → controller
+// Порядок: auth → parse → joi validation → business validation → process → controller
 router.post('/',
   authMiddleware.verifyToken.bind(authMiddleware),
   productUpload.parse,                              // 1. Парсим form-data (файл в памяти)
-  validationMiddleware.validateBody(validateProduct), // 2. Валидируем body
-  productUpload.process,                            // 3. Обрабатываем и сохраняем изображение
+  validationMiddleware.validateBody(validateProduct), // 2. Joi валидация
+  businessValidation.validateProductCreate(),       // 3. Бизнес-валидация (уникальность code, категория)
+  productUpload.process,                            // 4. Сохраняем изображение на диск
   ProductController.create.bind(ProductController)
 );
 
@@ -97,8 +99,9 @@ router.patch('/:id',
   authMiddleware.verifyToken.bind(authMiddleware),
   validationMiddleware.validateParams(validateIdParam),
   productUploadOptional.parse,                           // 1. Парсим form-data
-  validationMiddleware.validateBody(validateProductUpdate), // 2. Валидируем body
-  productUploadOptional.process,                         // 3. Обрабатываем изображение (если есть)
+  validationMiddleware.validateBody(validateProductUpdate), // 2. Joi валидация
+  businessValidation.validateProductUpdate(),            // 3. Бизнес-валидация
+  productUploadOptional.process,                         // 4. Сохраняем изображение (если есть)
   ProductController.update.bind(ProductController)
 );
 

@@ -19,17 +19,17 @@ const customFormat = winston.format.combine(
   winston.format.json(),
   winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
     let log = `${timestamp} [${level.toUpperCase()}]: ${message}`;
-    
+
     // Добавляем метаданные, если есть
     if (Object.keys(meta).length > 0) {
       log += ` | Meta: ${JSON.stringify(meta)}`;
     }
-    
+
     // Добавляем stack trace для ошибок
     if (stack) {
       log += `\n${stack}`;
     }
-    
+
     return log;
   })
 );
@@ -44,18 +44,18 @@ const consoleFormat = winston.format.combine(
   }),
   winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
     let log = `${timestamp} ${level}: ${message}`;
-    
+
     // Добавляем метаданные в сокращенном виде для консоли
     if (meta.userId) log += ` [User: ${meta.userId}]`;
     if (meta.ip) log += ` [IP: ${meta.ip}]`;
     if (meta.method && meta.url) log += ` [${meta.method} ${meta.url}]`;
     if (meta.duration) log += ` [${meta.duration}ms]`;
-    
+
     // Stack trace только в development
     if (stack && process.env.NODE_ENV === 'development') {
       log += `\n${stack}`;
     }
-    
+
     return log;
   })
 );
@@ -235,7 +235,7 @@ logger.errorWithContext = (error, context = {}) => {
     type: 'ERROR',
     ...context
   };
-  
+
   logger.error('Application Error', errorInfo);
 };
 
@@ -296,13 +296,11 @@ const LoggerUtils = {
     requestId: req.id // Если используется middleware для ID запросов
   }),
 
-  /**
-   * Безопасное логирование объекта (скрытие чувствительных данных)
-   */
+
   sanitizeObject: (obj) => {
     const sensitiveFields = ['password', 'token', 'secret', 'key', 'authorization'];
     const sanitized = { ...obj };
-    
+
     const sanitizeRecursive = (target) => {
       for (const key in target) {
         if (typeof target[key] === 'object' && target[key] !== null) {
@@ -312,7 +310,7 @@ const LoggerUtils = {
         }
       }
     };
-    
+
     sanitizeRecursive(sanitized);
     return sanitized;
   },

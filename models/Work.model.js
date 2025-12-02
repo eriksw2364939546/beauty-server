@@ -1,13 +1,13 @@
 import mongoose from 'mongoose';
 
 const workSchema = new mongoose.Schema({
-  image: {
-    type: String,
+  service: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Service',
     required: true
   },
-  category: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Category',
+  image: {
+    type: String,
     required: true
   }
 }, {
@@ -16,7 +16,7 @@ const workSchema = new mongoose.Schema({
 });
 
 // Индексы
-workSchema.index({ category: 1 });
+workSchema.index({ service: 1 });
 workSchema.index({ createdAt: -1 });
 
 export default mongoose.model('Work', workSchema);

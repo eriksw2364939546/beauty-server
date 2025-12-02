@@ -4,9 +4,10 @@ class PriceController {
     // GET /api/prices - получить все расценки
     async getAll(req, res, next) {
         try {
-            const { category, search, page, limit } = req.query;
+            const { service, category, search, page, limit } = req.query;
 
             const result = await PriceService.getAllPrices({
+                service,
                 category,
                 search,
                 page: parseInt(page) || 1,
@@ -31,15 +32,41 @@ class PriceController {
         }
     }
 
-    // GET /api/prices/grouped - расценки сгруппированные по категориям
-    async getGrouped(req, res, next) {
+    // GET /api/prices/:id - получить расценку по ID
+    async getById(req, res, next) {
         try {
-            const result = await PriceService.getPricesGroupedByCategory();
+            const { id } = req.params;
+
+            const result = await PriceService.getPriceById(id);
 
             if (!result.success) {
-                return res.status(400).json({
+                return res.status(404).json({
                     ok: false,
-                    error: 'fetch_error',
+                    error: 'not_found',
+                    message: result.message
+                });
+            }
+
+            res.json({
+                ok: true,
+                data: result.data
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // GET /api/prices/by-service/:serviceId - расценки по услуге
+    async getByService(req, res, next) {
+        try {
+            const { serviceId } = req.params;
+
+            const result = await PriceService.getPricesByService(serviceId);
+
+            if (!result.success) {
+                return res.status(404).json({
+                    ok: false,
+                    error: 'not_found',
                     message: result.message
                 });
             }
@@ -77,17 +104,15 @@ class PriceController {
         }
     }
 
-    // GET /api/prices/:id - получить расценку по ID
-    async getById(req, res, next) {
+    // GET /api/prices/grouped - расценки сгруппированные по услугам
+    async getGrouped(req, res, next) {
         try {
-            const { id } = req.params;
-
-            const result = await PriceService.getPriceById(id);
+            const result = await PriceService.getPricesGroupedByService();
 
             if (!result.success) {
-                return res.status(404).json({
+                return res.status(400).json({
                     ok: false,
-                    error: 'not_found',
+                    error: 'fetch_error',
                     message: result.message
                 });
             }

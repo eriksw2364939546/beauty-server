@@ -8,7 +8,7 @@ class ProductService {
   // Получение всех товаров
   async getAllProducts(filters = {}) {
     try {
-      const { category, brand, search, minPrice, maxPrice, limit, page = 1 } = filters;
+      const { category, brand, search, limit, page = 1 } = filters;
 
       const query = {};
 
@@ -17,22 +17,17 @@ class ProductService {
       }
 
       if (brand) {
-        query.brand = { $regex: brand, $options: 'i' };
+        query.brand = { $regex: new RegExp(`^${brand}$`, 'i') };
       }
 
+      // Поиск по названию, описанию и бренду
       if (search) {
         query.$or = [
           { title: { $regex: search, $options: 'i' } },
           { description: { $regex: search, $options: 'i' } },
-          { code: { $regex: search, $options: 'i' } },
-          { brand: { $regex: search, $options: 'i' } }
+          { brand: { $regex: search, $options: 'i' } },
+          { code: { $regex: search, $options: 'i' } }
         ];
-      }
-
-      if (minPrice !== undefined || maxPrice !== undefined) {
-        query.price = {};
-        if (minPrice !== undefined) query.price.$gte = minPrice;
-        if (maxPrice !== undefined) query.price.$lte = maxPrice;
       }
 
       const skip = (page - 1) * (limit || 0);
@@ -43,7 +38,9 @@ class ProductService {
         options.skip = skip;
       }
 
-      const products = await Product.find(query, null, options).populate('category', 'title slug section');
+      const products = await Product.find(query, null, options)
+        .populate('category', 'title slug section');
+
       const total = await Product.countDocuments(query);
 
       return {
@@ -66,7 +63,8 @@ class ProductService {
   // Получение товара по ID
   async getProductById(productId) {
     try {
-      const product = await Product.findById(productId).populate('category', 'title slug section');
+      const product = await Product.findById(productId)
+        .populate('category', 'title slug section');
 
       if (!product) {
         return { success: false, message: 'Товар не найден' };
@@ -83,7 +81,8 @@ class ProductService {
   // Получение товара по slug
   async getProductBySlug(slug) {
     try {
-      const product = await Product.findOne({ slug: slug.toLowerCase() }).populate('category', 'title slug section');
+      const product = await Product.findOne({ slug: slug.toLowerCase() })
+        .populate('category', 'title slug section');
 
       if (!product) {
         return { success: false, message: 'Товар не найден' };
@@ -100,7 +99,8 @@ class ProductService {
   // Получение товара по артикулу
   async getProductByCode(code) {
     try {
-      const product = await Product.findOne({ code: code.toUpperCase() }).populate('category', 'title slug section');
+      const product = await Product.findOne({ code: code.toUpperCase() })
+        .populate('category', 'title slug section');
 
       if (!product) {
         return { success: false, message: 'Товар не найден' };
@@ -115,31 +115,13 @@ class ProductService {
   }
 
   // Получение товаров по категории
-  async getProductsByCategory(categoryId, options = {}) {
+  async getProductsByCategory(categoryId) {
     try {
-      const { page = 1, limit = 12 } = options;
-
-      const query = { category: categoryId };
-      const skip = (page - 1) * limit;
-
-      const products = await Product.find(query)
+      const products = await Product.find({ category: categoryId })
         .populate('category', 'title slug section')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit);
+        .sort({ createdAt: -1 });
 
-      const total = await Product.countDocuments(query);
-
-      return {
-        success: true,
-        data: products,
-        meta: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      };
+      return { success: true, data: products };
 
     } catch (error) {
       console.error('❌ Ошибка при получении товаров по категории:', error);
@@ -164,15 +146,12 @@ class ProductService {
   }
 
   // Поиск товаров
-  async searchProducts(searchQuery, options = {}) {
+  async searchProducts(searchQuery, page = 1, limit = 12) {
     try {
-      const { page = 1, limit = 12 } = options;
-
       const query = {
         $or: [
           { title: { $regex: searchQuery, $options: 'i' } },
           { description: { $regex: searchQuery, $options: 'i' } },
-          { code: { $regex: searchQuery, $options: 'i' } },
           { brand: { $regex: searchQuery, $options: 'i' } }
         ]
       };
@@ -222,7 +201,13 @@ class ProductService {
     try {
       const { title, description, price, code, brand, categoryId } = productData;
 
-      // Проверяем существование категории с section: 'product'
+      // 1. Проверяем уникальность артикула ПЕРЕД сохранением изображения
+      const existingByCode = await Product.findOne({ code: code.toUpperCase().trim() });
+      if (existingByCode) {
+        return { success: false, message: 'Товар с таким артикулом уже существует' };
+      }
+
+      // 2. Проверяем существование категории с section: 'product'
       const category = await Category.findById(categoryId);
 
       if (!category) {
@@ -236,6 +221,7 @@ class ProductService {
         };
       }
 
+      // 3. Генерируем slug и проверяем уникальность
       const slug = await generateSlug(title, 'Product');
 
       const product = new Product({
@@ -290,7 +276,7 @@ class ProductService {
 
       if (title && title.trim() !== product.title) {
         updateFields.title = title.trim();
-        updateFields.slug = (await generateSlug(title, 'Product')).toLowerCase();
+        updateFields.slug = await generateSlug(title, 'Product');
       }
 
       if (description && description.trim() !== product.description) {
@@ -302,6 +288,14 @@ class ProductService {
       }
 
       if (code && code.toUpperCase().trim() !== product.code) {
+        // Проверяем уникальность нового артикула
+        const existingByCode = await Product.findOne({
+          code: code.toUpperCase().trim(),
+          _id: { $ne: productId }
+        });
+        if (existingByCode) {
+          return { success: false, message: 'Товар с таким артикулом уже существует' };
+        }
         updateFields.code = code.toUpperCase().trim();
       }
 
@@ -309,18 +303,17 @@ class ProductService {
         updateFields.brand = brand.trim();
       }
 
-      // Если меняется категория — проверяем что новая категория с section: 'product'
-      if (categoryId && categoryId.toString() !== product.category.toString()) {
-        const newCategory = await Category.findById(categoryId);
+      if (categoryId && categoryId !== product.category.toString()) {
+        const category = await Category.findById(categoryId);
 
-        if (!newCategory) {
+        if (!category) {
           return { success: false, message: 'Категория не найдена' };
         }
 
-        if (newCategory.section !== 'product') {
+        if (category.section !== 'product') {
           return {
             success: false,
-            message: `Категория "${newCategory.title}" не относится к секции "product"`
+            message: `Категория "${category.title}" не относится к секции "product". Текущая секция: "${category.section}"`
           };
         }
 

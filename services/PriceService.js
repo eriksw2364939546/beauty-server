@@ -1,17 +1,25 @@
 import Price from '../models/Price.model.js';
-import Category from '../models/Category.model.js';
+import Service from '../models/Service.model.js';
 
 class PriceService {
 
     // Получение всех расценок
     async getAllPrices(filters = {}) {
         try {
-            const { category, search, limit, page = 1 } = filters;
+            const { service, category, search, limit, page = 1 } = filters;
 
             const query = {};
 
+            // Фильтр по услуге
+            if (service) {
+                query.service = service;
+            }
+
+            // Фильтр по категории (через услугу)
             if (category) {
-                query.category = category;
+                const services = await Service.find({ category }).select('_id');
+                const serviceIds = services.map(s => s._id);
+                query.service = { $in: serviceIds };
             }
 
             if (search) {
@@ -22,14 +30,23 @@ class PriceService {
             }
 
             const skip = (page - 1) * (limit || 0);
-            const options = { sort: { category: 1, sortOrder: 1, createdAt: 1 } };
+            const options = { sort: { sortOrder: 1, createdAt: 1 } };
 
             if (limit) {
                 options.limit = parseInt(limit);
                 options.skip = skip;
             }
 
-            const prices = await Price.find(query, null, options).populate('category', 'title slug section');
+            const prices = await Price.find(query, null, options)
+                .populate({
+                    path: 'service',
+                    select: 'title slug category',
+                    populate: {
+                        path: 'category',
+                        select: 'title slug section'
+                    }
+                });
+
             const total = await Price.countDocuments(query);
 
             return {
@@ -52,7 +69,15 @@ class PriceService {
     // Получение расценки по ID
     async getPriceById(priceId) {
         try {
-            const price = await Price.findById(priceId).populate('category', 'title slug section');
+            const price = await Price.findById(priceId)
+                .populate({
+                    path: 'service',
+                    select: 'title slug category',
+                    populate: {
+                        path: 'category',
+                        select: 'title slug section'
+                    }
+                });
 
             if (!price) {
                 return { success: false, message: 'Расценка не найдена' };
@@ -66,11 +91,50 @@ class PriceService {
         }
     }
 
-    // Получение расценок по категории
+    // Получение расценок по услуге
+    async getPricesByService(serviceId) {
+        try {
+            const service = await Service.findById(serviceId);
+
+            if (!service) {
+                return { success: false, message: 'Услуга не найдена' };
+            }
+
+            const prices = await Price.find({ service: serviceId })
+                .populate({
+                    path: 'service',
+                    select: 'title slug category',
+                    populate: {
+                        path: 'category',
+                        select: 'title slug section'
+                    }
+                })
+                .sort({ sortOrder: 1, createdAt: 1 });
+
+            return { success: true, data: prices };
+
+        } catch (error) {
+            console.error('❌ Ошибка при получении расценок по услуге:', error);
+            throw new Error('Ошибка при получении расценок по услуге');
+        }
+    }
+
+    // Получение расценок по категории (через услуги)
     async getPricesByCategory(categoryId) {
         try {
-            const prices = await Price.find({ category: categoryId })
-                .populate('category', 'title slug section')
+            // Находим все услуги этой категории
+            const services = await Service.find({ category: categoryId }).select('_id');
+            const serviceIds = services.map(s => s._id);
+
+            const prices = await Price.find({ service: { $in: serviceIds } })
+                .populate({
+                    path: 'service',
+                    select: 'title slug category',
+                    populate: {
+                        path: 'category',
+                        select: 'title slug section'
+                    }
+                })
                 .sort({ sortOrder: 1, createdAt: 1 });
 
             return { success: true, data: prices };
@@ -81,27 +145,34 @@ class PriceService {
         }
     }
 
-    // Получение расценок сгруппированных по категориям
-    async getPricesGroupedByCategory() {
+    // Получение расценок сгруппированных по услугам
+    async getPricesGroupedByService() {
         try {
             const prices = await Price.find()
-                .populate('category', 'title slug section sortOrder')
-                .sort({ 'category.sortOrder': 1, sortOrder: 1 });
+                .populate({
+                    path: 'service',
+                    select: 'title slug category',
+                    populate: {
+                        path: 'category',
+                        select: 'title slug section sortOrder'
+                    }
+                })
+                .sort({ sortOrder: 1 });
 
-            // Группируем по категориям
+            // Группируем по услугам
             const grouped = {};
 
             for (const price of prices) {
-                const categoryId = price.category._id.toString();
+                const serviceId = price.service._id.toString();
 
-                if (!grouped[categoryId]) {
-                    grouped[categoryId] = {
-                        category: price.category,
+                if (!grouped[serviceId]) {
+                    grouped[serviceId] = {
+                        service: price.service,
                         items: []
                     };
                 }
 
-                grouped[categoryId].items.push({
+                grouped[serviceId].items.push({
                     _id: price._id,
                     title: price.title,
                     description: price.description,
@@ -110,10 +181,8 @@ class PriceService {
                 });
             }
 
-            // Преобразуем в массив и сортируем по sortOrder категории
-            const result = Object.values(grouped).sort((a, b) =>
-                (a.category.sortOrder || 0) - (b.category.sortOrder || 0)
-            );
+            // Преобразуем в массив
+            const result = Object.values(grouped);
 
             return { success: true, data: result };
 
@@ -126,34 +195,35 @@ class PriceService {
     // Создание новой расценки
     async createPrice(priceData) {
         try {
-            const { title, description, price, categoryId, sortOrder } = priceData;
+            const { title, description, price, serviceId, sortOrder } = priceData;
 
-            // Проверяем существование категории с section: 'price'
-            const category = await Category.findById(categoryId);
+            // Проверяем существование услуги
+            const service = await Service.findById(serviceId);
 
-            if (!category) {
-                return { success: false, message: 'Категория не найдена' };
-            }
-
-            if (category.section !== 'price') {
-                return {
-                    success: false,
-                    message: `Категория "${category.title}" не относится к секции "price". Текущая секция: "${category.section}"`
-                };
+            if (!service) {
+                return { success: false, message: 'Услуга не найдена' };
             }
 
             const newPrice = new Price({
                 title: title.trim(),
                 description: description ? description.trim() : '',
                 price: parseFloat(price),
-                category: categoryId,
+                service: serviceId,
                 sortOrder: parseInt(sortOrder) || 0
             });
 
             await newPrice.save();
 
-            // Возвращаем с populated category
-            const populatedPrice = await Price.findById(newPrice._id).populate('category', 'title slug section');
+            // Возвращаем с populated service
+            const populatedPrice = await Price.findById(newPrice._id)
+                .populate({
+                    path: 'service',
+                    select: 'title slug category',
+                    populate: {
+                        path: 'category',
+                        select: 'title slug section'
+                    }
+                });
 
             return {
                 success: true,
@@ -170,7 +240,7 @@ class PriceService {
     // Обновление расценки
     async updatePrice(priceId, updateData) {
         try {
-            const { title, description, price, categoryId, sortOrder } = updateData;
+            const { title, description, price, serviceId, sortOrder } = updateData;
 
             const existingPrice = await Price.findById(priceId);
 
@@ -196,22 +266,15 @@ class PriceService {
                 updateFields.sortOrder = parseInt(sortOrder);
             }
 
-            // Если меняется категория — проверяем что новая категория с section: 'price'
-            if (categoryId && categoryId.toString() !== existingPrice.category.toString()) {
-                const newCategory = await Category.findById(categoryId);
+            // Если меняется услуга — проверяем существование
+            if (serviceId && serviceId.toString() !== existingPrice.service.toString()) {
+                const newService = await Service.findById(serviceId);
 
-                if (!newCategory) {
-                    return { success: false, message: 'Категория не найдена' };
+                if (!newService) {
+                    return { success: false, message: 'Услуга не найдена' };
                 }
 
-                if (newCategory.section !== 'price') {
-                    return {
-                        success: false,
-                        message: `Категория "${newCategory.title}" не относится к секции "price"`
-                    };
-                }
-
-                updateFields.category = categoryId;
+                updateFields.service = serviceId;
             }
 
             if (Object.keys(updateFields).length === 0) {
@@ -222,7 +285,14 @@ class PriceService {
                 priceId,
                 updateFields,
                 { new: true, runValidators: true }
-            ).populate('category', 'title slug section');
+            ).populate({
+                path: 'service',
+                select: 'title slug category',
+                populate: {
+                    path: 'category',
+                    select: 'title slug section'
+                }
+            });
 
             return {
                 success: true,

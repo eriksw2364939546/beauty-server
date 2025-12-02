@@ -4,9 +4,10 @@ class WorkController {
   // GET /api/works - получить все работы
   async getAll(req, res, next) {
     try {
-      const { category, page, limit } = req.query;
+      const { service, category, page, limit } = req.query;
 
       const result = await WorkService.getAllWorks({
+        service,
         category,
         page: parseInt(page) || 1,
         limit: parseInt(limit) || 12
@@ -36,6 +37,30 @@ class WorkController {
       const { id } = req.params;
 
       const result = await WorkService.getWorkById(id);
+
+      if (!result.success) {
+        return res.status(404).json({
+          ok: false,
+          error: 'not_found',
+          message: result.message
+        });
+      }
+
+      res.json({
+        ok: true,
+        data: result.data
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/works/by-service/:serviceId - работы по услуге
+  async getByService(req, res, next) {
+    try {
+      const { serviceId } = req.params;
+
+      const result = await WorkService.getWorksByService(serviceId);
 
       if (!result.success) {
         return res.status(404).json({
