@@ -6,9 +6,16 @@ class AuthMiddleware {
   // Проверка JWT токена из httpOnly cookie
   async verifyToken(req, res, next) {
     try {
-      // Получаем токен из cookie
-      const token = req.cookies?.admin_token;
+      // Получаем токен из cookie ИЛИ из заголовка Authorization
+      let token = req.cookies?.admin_token;
 
+      // Если нет в cookie — проверяем заголовок
+      if (!token) {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          token = authHeader.substring(7); // Убираем "Bearer "
+        }
+      }
       if (!token) {
         return res.status(401).json({
           ok: false,

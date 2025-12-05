@@ -17,10 +17,10 @@ export const validateCategory = Joi.object({
     }),
 
   section: Joi.string()
-    .valid('service', 'work', 'price', 'product')
+    .valid('service', 'price', 'product')
     .required()
     .messages({
-      'any.only': 'Раздел должен быть одним из: service, work, price, product',
+      'any.only': 'Раздел должен быть одним из: service, price, product',
       'any.required': 'Раздел категории обязателен',
       'string.empty': 'Раздел категории не может быть пустым'
     }),
@@ -65,7 +65,7 @@ export const validateCategoryUpdate = Joi.object({
     }),
 
   section: Joi.string()
-    .valid('service', 'work', 'price', 'product')
+    .valid('service', 'price', 'product')
     .optional()
     .messages({
       'any.only': 'Раздел должен быть одним из: service, work, price, product',
@@ -127,7 +127,7 @@ export const validateCategoryParams = Joi.object({
  */
 export const validateCategoryQuery = Joi.object({
   section: Joi.string()
-    .valid('service', 'work', 'price', 'product')
+    .valid('service', 'price', 'product')
     .optional()
     .messages({
       'any.only': 'Раздел должен быть одним из: service, work, price, product'

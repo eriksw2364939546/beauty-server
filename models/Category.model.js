@@ -13,7 +13,7 @@ const categorySchema = new mongoose.Schema({
   },
   section: {
     type: String,
-    enum: ['service', 'work', 'price', 'product'],
+    enum: ['service', 'price', 'product'],
     required: true
   },
   sortOrder: {
