@@ -2,19 +2,24 @@ import ProductService from '../services/ProductService.js';
 
 class ProductController {
   // GET /api/products - получить все товары
+  // GET /api/products - получить все товары
   async getAll(req, res, next) {
     try {
       const { category, brand, search, minPrice, maxPrice, page, limit } = req.query;
 
-      const result = await ProductService.getAllProducts({
-        category,
-        brand,
-        search,
-        minPrice: minPrice ? parseFloat(minPrice) : undefined,
-        maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
-        page: parseInt(page) || 1,
-        limit: parseInt(limit) || 12
-      });
+      // Формируем объект параметров, исключая undefined значения
+      const filters = {};
+
+      if (category) filters.category = category;
+      if (brand) filters.brand = brand;
+      if (search) filters.search = search;
+      if (minPrice) filters.minPrice = parseFloat(minPrice);
+      if (maxPrice) filters.maxPrice = parseFloat(maxPrice);
+
+      filters.page = parseInt(page) || 1;
+      filters.limit = parseInt(limit) || 12;
+
+      const result = await ProductService.getAllProducts(filters);
 
       if (!result.success) {
         return res.status(400).json({

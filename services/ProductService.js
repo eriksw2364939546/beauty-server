@@ -6,21 +6,35 @@ import uploadPhotoMiddleware from '../middlewares/UploadPhoto.middleware.js';
 class ProductService {
 
   // Получение всех товаров
+
   async getAllProducts(filters = {}) {
     try {
-      const { category, brand, search, limit, page = 1 } = filters;
+      const { category, brand, search, minPrice, maxPrice, limit, page = 1 } = filters;
 
       const query = {};
 
+      // Фильтр по категории
       if (category) {
         query.category = category;
       }
 
+      // Фильтр по бренду
       if (brand) {
         query.brand = { $regex: new RegExp(`^${brand}$`, 'i') };
       }
 
-      // Поиск по названию, описанию и бренду
+      // Фильтр по цене
+      if (minPrice !== undefined || maxPrice !== undefined) {
+        query.price = {};
+        if (minPrice !== undefined) {
+          query.price.$gte = minPrice;
+        }
+        if (maxPrice !== undefined) {
+          query.price.$lte = maxPrice;
+        }
+      }
+
+      // Поиск по названию, описанию, бренду и коду
       if (search) {
         query.$or = [
           { title: { $regex: search, $options: 'i' } },
