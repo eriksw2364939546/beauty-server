@@ -1,3 +1,4 @@
+// backend/routes/price.routes.js
 import express from 'express';
 import PriceController from '../controllers/PriceController.js';
 import authMiddleware from '../middlewares/Auth.middleware.js';
@@ -7,6 +8,7 @@ import {
     validatePriceUpdate,
     validatePriceQuery,
     validateIdParam,
+    validateServiceIdParam,
     validateCategoryIdParam,
     validateSortOrder
 } from '../validations/price.validation.js';
@@ -23,10 +25,17 @@ router.get('/',
     PriceController.getAll.bind(PriceController)
 );
 
-// GET /api/prices/grouped - расценки сгруппированные по категориям
+// GET /api/prices/grouped - расценки сгруппированные по услугам
 // ВАЖНО: этот маршрут должен быть ПЕРЕД /:id
 router.get('/grouped',
     PriceController.getGrouped.bind(PriceController)
+);
+
+// GET /api/prices/by-service/:serviceId - расценки по услуге
+// ВАЖНО: этот маршрут должен быть ПЕРЕД /:id
+router.get('/by-service/:serviceId',
+    validationMiddleware.validateParams(validateServiceIdParam),
+    PriceController.getByService.bind(PriceController)
 );
 
 // GET /api/prices/by-category/:categoryId - расценки по категории
